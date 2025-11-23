@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFL Bingo Multiplayer</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- 1. Add MQTT Library -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🏈 NFL Bingo Live</h1>
+
+        <!-- LOBBY VIEW -->
+        <div id="lobby-screen">
+            <div class="controls">
+                <div class="input-group">
+                    <label>Your Name:</label>
+                    <input type="text" id="username" placeholder="e.g. Switch">
+                </div>
+                
+                <div class="lobby-actions">
+                    <div class="action-box">
+                        <h3>Host a Game</h3>
+                        <p>Generate a room code for friends.</p>
+                        <button id="create-btn">Create Room</button>
+                    </div>
+                    <div class="action-box">
+                        <h3>Join a Game</h3>
+                        <input type="text" id="room-code-input" placeholder="ABCD" maxlength="4" style="text-transform:uppercase">
+                        <button id="join-btn">Join Room</button>
+                    </div>
+                </div>
+                <p id="connection-status">Status: Disconnected</p>
+            </div>
+        </div>
+
+        <!-- GAME VIEW -->
+        <div id="game-screen" class="hidden">
+            <div class="game-header">
+                <div id="room-display">Room: <span id="current-room-code">----</span></div>
+                <!-- Only Host sees these controls -->
+                <div id="host-controls" class="hidden">
+                    <select id="team-select"></select>
+                    <button id="new-game-btn">Reset/New Cards</button>
+                </div>
+            </div>
+
+            <div class="info-bar">
+                <img id="team-logo" class="hidden" src="" alt="Logo">
+                <span id="player-count">Players: 0</span>
+            </div>
+
+            <!-- Container for the Bingo Card -->
+            <div id="my-card-container"></div>
+
+            <!-- Host sees other players' progress here -->
+            <div id="scoreboard-container" class="hidden">
+                <h3>Live Scoreboard</h3>
+                <div id="scoreboard-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js" defer></script>
+</body>
+
+</html>
