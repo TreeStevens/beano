@@ -16,12 +16,12 @@ body {
 .hidden { display: none !important; }
 
 .container {
-    max-width: 600px; /* Narrower for mobile focus */
+    max-width: 600px; 
     margin: 0 auto;
     text-align: center;
 }
 
-/* LOBBY STYLES */
+/* LOBBY */
 .controls {
     background: white;
     padding: 20px;
@@ -31,7 +31,7 @@ body {
 
 .lobby-actions {
     display: flex;
-    flex-direction: column; /* Stack on mobile */
+    flex-direction: column;
     gap: 15px;
     margin-top: 20px;
 }
@@ -40,17 +40,33 @@ body {
     border: 1px solid #eee;
     padding: 15px;
     border-radius: 8px;
+    text-align: left;
 }
 
-input {
+.setting-row {
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#cards-count-input {
+    width: 60px;
+    margin-left: 10px;
+}
+
+input[type="text"] {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 1rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 button {
-    padding: 10px 20px;
+    width: 100%;
+    padding: 10px;
     background-color: #007bff;
     color: white;
     border: none;
@@ -62,7 +78,7 @@ button {
 
 button:hover { background-color: #0056b3; }
 
-#room-code-input { width: 80px; text-align: center; letter-spacing: 2px; }
+#room-code-input { text-align: center; letter-spacing: 2px; text-transform: uppercase; }
 
 /* GAME HEADER */
 .game-header {
@@ -85,7 +101,14 @@ button:hover { background-color: #0056b3; }
 
 #team-logo { height: 50px; width: 50px; object-fit: contain; }
 
-/* CARD STYLES */
+/* CARD CONTAINER (Vertical Stack) */
+#my-card-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Space between multiple cards */
+}
+
+/* INDIVIDUAL CARD */
 .bingo-card {
     background: white;
     border-radius: 8px;
@@ -98,8 +121,14 @@ button:hover { background-color: #0056b3; }
     color: var(--card-secondary-color);
     padding: 10px;
     font-weight: bold;
-    font-size: 1.2rem;
-    transition: background 0.3s;
+    font-size: 1.1rem;
+    transition: background-color 0.3s;
+}
+
+/* Winner Highlight */
+.bingo-active {
+    background-color: #28a745 !important; 
+    color: white !important;
 }
 
 .bingo-grid {
@@ -116,7 +145,7 @@ button:hover { background-color: #0056b3; }
     align-items: center;
     justify-content: center;
     padding: 2px;
-    font-size: 0.7rem; /* Small font for mobile */
+    font-size: 0.7rem;
     text-align: center;
     cursor: pointer;
     user-select: none;
@@ -129,7 +158,7 @@ button:hover { background-color: #0056b3; }
 }
 
 .bingo-square.marked {
-    background-color: #28a745;
+    background-color: #28a745; /* Mark color independent of team */
     color: white;
     text-decoration: line-through;
 }
@@ -138,7 +167,6 @@ button:hover { background-color: #0056b3; }
     background-color: var(--card-primary-color) !important;
     color: var(--card-secondary-color) !important;
     font-weight: bold;
-    border: none;
 }
 
 /* SCOREBOARD */
@@ -148,4 +176,8 @@ button:hover { background-color: #0056b3; }
     padding: 15px;
     border-radius: 8px;
     text-align: left;
+}
+.score-row {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
 }

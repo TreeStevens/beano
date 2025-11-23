@@ -4,9 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFL Bingo Multiplayer</title>
+    <title>NFL Bingo Live</title>
     <link rel="stylesheet" href="style.css">
-    <!-- 1. Add MQTT Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -15,7 +14,7 @@
     <div class="container">
         <h1>🏈 NFL Bingo Live</h1>
 
-        <!-- LOBBY VIEW -->
+        <!-- LOBBY SCREEN -->
         <div id="lobby-screen">
             <div class="controls">
                 <div class="input-group">
@@ -24,11 +23,20 @@
                 </div>
                 
                 <div class="lobby-actions">
+                    <!-- HOST SECTION -->
                     <div class="action-box">
                         <h3>Host a Game</h3>
-                        <p>Generate a room code for friends.</p>
+                        
+                        <!-- NEW INPUT HERE -->
+                        <div class="setting-row">
+                            <label for="cards-count-input">Cards per Player:</label>
+                            <input type="number" id="cards-count-input" value="1" min="1" max="4">
+                        </div>
+
                         <button id="create-btn">Create Room</button>
                     </div>
+
+                    <!-- JOIN SECTION -->
                     <div class="action-box">
                         <h3>Join a Game</h3>
                         <input type="text" id="room-code-input" placeholder="ABCD" maxlength="4" style="text-transform:uppercase">
@@ -39,11 +47,11 @@
             </div>
         </div>
 
-        <!-- GAME VIEW -->
+        <!-- GAME SCREEN -->
         <div id="game-screen" class="hidden">
             <div class="game-header">
                 <div id="room-display">Room: <span id="current-room-code">----</span></div>
-                <!-- Only Host sees these controls -->
+                
                 <div id="host-controls" class="hidden">
                     <select id="team-select"></select>
                     <button id="new-game-btn">Reset/New Cards</button>
@@ -55,10 +63,9 @@
                 <span id="player-count">Players: 0</span>
             </div>
 
-            <!-- Container for the Bingo Card -->
+            <!-- This container will now hold MULTIPLE cards -->
             <div id="my-card-container"></div>
 
-            <!-- Host sees other players' progress here -->
             <div id="scoreboard-container" class="hidden">
                 <h3>Live Scoreboard</h3>
                 <div id="scoreboard-list"></div>

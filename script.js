@@ -1,29 +1,35 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ========================================================
-    // 1) CONFIG & DATA
-    // ========================================================
-    
     const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
-    const APP_ID = 'nfl-bingo-v1'; // Unique prefix to avoid collisions
-    
+    const APP_ID = 'nfl-bingo-v2'; // Changed version to prevent cached conflicts
+
     let client = null;
     let myId = 'user_' + Math.random().toString(36).substr(2, 9);
     let myName = '';
     let roomCode = '';
     let isHost = false;
     let amIConnected = false;
+
+    // ========================================================
+    // 1) MASTER STATE
+    // ========================================================
     
-    // THE MASTER STATE (Host Authoritative)
+    // Default config
+    let hostConfig = {
+        cardsPerPlayer: 1
+    };
+
     let gameState = {
         team: "None",
-        players: {} // id -> { name, cardEvents, markedIndices, hasBingo }
+        config: hostConfig,
+        // Players now map to: { name, cards: [ { events, markedIndices, hasBingo } ] }
+        players: {} 
     };
 
     // ========================================================
-    // 2) EVENT DATA & TEAMS (From original code)
+    // 2) DATA SETS
     // ========================================================
-    
+
     const eventCategories = {
         offense: ["Touchdown", "Field Goal", "First Down", "Two-Point Conversion", "QB Scramble", "4th Down Attempt", "Over 20-Yard Pass", "Over 10-Yard Run", "3rd & Long (>10y)", "Screen Pass >10y", "Play Action", "QB Sneak", "Hail Mary", "Empty Backfield", "I-Formation", "Shotgun", "5+ Wide Receivers", "Lineman Eligible", "No Huddle", "Trick Play", "Fake Punt"],
         defense: ["Sack", "Tackle for Loss", "Pass Defended", "Tipped Pass", "QB Throws Away", "Interception", "Fumble", "Forced Fumble", "RB Fumble", "WR Fumble", "Turnover on Downs", "Defensive TD", "Goal Line Stand", "3-and-Out", "Red Zone FG Hold", "3rd Down Stop", "Kicker/Punter Tackle", "Muffed Punt", "Blocked Punt", "Defensive Points"],
@@ -70,8 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const teamLogos = {
-        // Reuse your logo paths here. Ideally host these on a public URL or keep local if distributing zip.
-        // For this demo, I'll use placeholders if path fails, but keep your logic:
         ARI: "logos/arizona-cardinals.svg", ATL: "logos/atlanta-falcons.svg", BAL: "logos/baltimore-ravens.svg",
         BUF: "logos/buffalo-bills.svg", CAR: "logos/carolina-panthers.svg", CHI: "logos/chicago-bears.svg",
         CIN: "logos/cincinnati-bengals.svg", CLE: "logos/cleveland-browns.svg", DAL: "logos/dallas-cowboys.svg",
@@ -96,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================================
     // 3) DOM ELEMENTS
     // ========================================================
-
+    
     const lobbyScreen = document.getElementById('lobby-screen');
     const gameScreen = document.getElementById('game-screen');
     const usernameInput = document.getElementById('username');
@@ -104,7 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const joinBtn = document.getElementById('join-btn');
     const roomInput = document.getElementById('room-code-input');
     const connectionStatus = document.getElementById('connection-status');
-    
+    const cardsCountInput = document.getElementById('cards-count-input'); // New Input
+
     const currentRoomCode = document.getElementById('current-room-code');
     const hostControls = document.getElementById('host-controls');
     const teamSelect = document.getElementById('team-select');
@@ -116,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const teamLogoImg = document.getElementById('team-logo');
     const playerCountSpan = document.getElementById('player-count');
 
-    // Populate Team Select (Host only)
+    // Populate Team Select
     Object.keys(teamColors).forEach(t => {
         const opt = document.createElement('option');
         opt.value = t;
@@ -125,14 +130,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ========================================================
-    // 4) LOBBY LOGIC
+    // 4) LOBBY & START
     // ========================================================
 
     createBtn.addEventListener('click', () => {
         const name = usernameInput.value.trim() || 'Host';
+        // READ THE CONFIG
+        const count = parseInt(cardsCountInput.value) || 1;
+        
         myName = name;
         isHost = true;
         roomCode = generateRoomCode();
+        
+        hostConfig.cardsPerPlayer = Math.min(4, Math.max(1, count));
+        gameState.config = hostConfig;
+
         startGame();
     });
 
@@ -161,20 +173,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isHost) {
             hostControls.classList.remove('hidden');
             scoreboardContainer.classList.remove('hidden');
-            // Initialize Host State
-            gameState.team = 'None';
-            gameState.players = {}; 
-            // Add Host as a player automatically
+            gameState.players = {};
             addPlayerToState(myId, myName);
-        } else {
-            hostControls.classList.add('hidden');
         }
 
         connectToMqtt();
     }
 
     // ========================================================
-    // 5) MQTT NETWORKING (The Core)
+    // 5) MQTT CONNECTION
     // ========================================================
 
     function connectToMqtt() {
@@ -183,17 +190,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const topic = `${APP_ID}/${roomCode}`;
 
         client.on('connect', () => {
-            console.log("Connected to MQTT");
             connectionStatus.textContent = "Connected!";
             client.subscribe(topic);
             
             if (isHost) {
-                // HOST: Heartbeat Loop (Broadcast state every 1s)
+                // HOST HEARTBEAT
                 setInterval(() => {
                     sendMqtt({ type: 'STATE', state: gameState });
                 }, 1000);
             } else {
-                // CLIENT: Join Loop (Knock until answered)
+                // CLIENT JOIN LOOP
                 const joinInterval = setInterval(() => {
                     if (amIConnected) {
                         clearInterval(joinInterval);
@@ -206,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         client.on('message', (topic, message) => {
             const payload = JSON.parse(message.toString());
-            if (payload.senderId === myId) return; // Ignore own messages
+            if (payload.senderId === myId) return;
 
             if (isHost) {
                 handleHostMessages(payload);
@@ -227,53 +233,61 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================================
 
     function handleHostMessages(data) {
-        // Client asking to join
         if (data.type === 'JOIN') {
             if (!gameState.players[data.senderId]) {
                 addPlayerToState(data.senderId, data.name);
             }
         }
-        // Client clicked a square
         if (data.type === 'CLICK') {
-            const pid = data.senderId;
-            const idx = data.index;
-            if (gameState.players[pid]) {
-                const p = gameState.players[pid];
-                // Toggle mark
-                if (p.markedIndices.includes(idx)) {
-                    p.markedIndices = p.markedIndices.filter(i => i !== idx);
+            // Data needed: senderId, cardIndex, squareIndex
+            const p = gameState.players[data.senderId];
+            if (p && p.cards[data.cardIndex]) {
+                const targetCard = p.cards[data.cardIndex];
+                const idx = data.squareIndex;
+                
+                // Toggle Mark
+                if (targetCard.markedIndices.includes(idx)) {
+                    targetCard.markedIndices = targetCard.markedIndices.filter(i => i !== idx);
                 } else {
-                    p.markedIndices.push(idx);
+                    targetCard.markedIndices.push(idx);
                 }
-                // Check Bingo
-                p.hasBingo = checkBingo(p.markedIndices);
+                
+                // Check Bingo for THIS card
+                targetCard.hasBingo = checkBingo(targetCard.markedIndices);
             }
         }
     }
 
     function handleClientMessages(data) {
         if (data.type === 'STATE') {
-            amIConnected = true; // We heard the host!
-            const serverState = data.state;
-            renderGame(serverState);
+            amIConnected = true;
+            renderGame(data.state);
         }
     }
 
     // ========================================================
-    // 7) GAME LOGIC (Host-Side)
+    // 7) GAME LOGIC (HOST)
     // ========================================================
 
     function addPlayerToState(id, name) {
+        const numCards = gameState.config.cardsPerPlayer;
+        const playerCards = [];
+
+        for (let i = 0; i < numCards; i++) {
+            playerCards.push({
+                events: generateCardEvents(),
+                markedIndices: [12], // Free space
+                hasBingo: false
+            });
+        }
+
         gameState.players[id] = {
             name: name,
-            cardEvents: generateCardEvents(),
-            markedIndices: [12], // Free space
-            hasBingo: false
+            cards: playerCards
         };
     }
 
     function generateCardEvents() {
-        // Logic from original script
         const distribution = { offense: 6, defense: 6, penalties: 3, specialTeams: 2, gameManagement: 2, flavor: 5 };
         let selected = [];
         Object.entries(distribution).forEach(([cat, count]) => {
@@ -281,51 +295,46 @@ document.addEventListener('DOMContentLoaded', () => {
             const shuffled = [...pool].sort(() => Math.random() - 0.5);
             selected = selected.concat(shuffled.slice(0, Math.min(count, pool.length)));
         });
-        // Fill if short
         if (selected.length < 24) {
             const all = Object.values(eventCategories).flat();
             const rem = all.filter(e => !selected.includes(e));
             selected = selected.concat(rem.sort(() => Math.random() - 0.5).slice(0, 24 - selected.length));
         }
-        // Shuffle final 24
         const final = selected.sort(() => Math.random() - 0.5);
-        // Insert FREE SPACE at index 12 later in render, but logic expects 24 items usually
-        // Actually, let's store 25 items for easier index matching.
-        // Insert "FREE SPACE" at index 12
         final.splice(12, 0, "FREE SPACE");
         return final;
     }
 
     function checkBingo(markedIndices) {
         for (const combo of winningCombinations) {
-            if (combo.every(idx => markedIndices.includes(idx))) {
-                return true;
-            }
+            if (combo.every(idx => markedIndices.includes(idx))) return true;
         }
         return false;
     }
 
-    // Host Controls
     teamSelect.addEventListener('change', () => {
         gameState.team = teamSelect.value;
     });
 
     newGameBtn.addEventListener('click', () => {
-        if(confirm("Reset game and generate new cards for everyone?")) {
+        if(confirm("Reset game?")) {
             Object.keys(gameState.players).forEach(pid => {
-                gameState.players[pid].cardEvents = generateCardEvents();
-                gameState.players[pid].markedIndices = [12];
-                gameState.players[pid].hasBingo = false;
+                const p = gameState.players[pid];
+                // Regenerate all cards for this player
+                p.cards.forEach(c => {
+                    c.events = generateCardEvents();
+                    c.markedIndices = [12];
+                    c.hasBingo = false;
+                });
             });
         }
     });
 
     // ========================================================
-    // 8) RENDER LOGIC (Client-Side)
+    // 8) RENDER LOGIC (CLIENT)
     // ========================================================
 
     function renderGame(serverState) {
-        // Update Team Colors
         const team = serverState.team;
         const colors = teamColors[team] || teamColors["None"];
         document.documentElement.style.setProperty('--card-primary-color', colors.primary);
@@ -338,101 +347,116 @@ document.addEventListener('DOMContentLoaded', () => {
             teamLogoImg.classList.add('hidden');
         }
 
-        // My Data
+        // Render My Cards
         const myData = serverState.players[myId];
-        if (!myData) return; // Not fully joined yet
+        if (myData) {
+            renderAllMyCards(myData);
+        }
 
-        renderMyCard(myData);
-
-        // Stats
+        // Update Counts
         const pIds = Object.keys(serverState.players);
         playerCountSpan.textContent = `Players: ${pIds.length}`;
 
-        // Host Scoreboard
+        // Update Scoreboard (Host View)
         if (isHost) {
             renderScoreboard(serverState.players);
         }
     }
 
-    function renderMyCard(playerData) {
-        // Idempotent render: Only rebuild if empty, otherwise update classes
-        let grid = document.querySelector('.bingo-grid');
-        
-        if (!grid) {
-            myCardContainer.innerHTML = '';
-            const card = document.createElement('div');
-            card.className = 'bingo-card';
-            
-            // Header
-            const header = document.createElement('div');
-            header.className = 'card-header';
-            header.innerHTML = `<span>${playerData.name}</span>`;
-            card.appendChild(header);
+    function renderAllMyCards(playerData) {
+        // Ensure we have the right number of card DOM elements
+        const cardCount = playerData.cards.length;
+        const currentDomCards = myCardContainer.querySelectorAll('.bingo-card');
 
-            grid = document.createElement('div');
-            grid.className = 'bingo-grid';
-            
-            // Build Squares
-            playerData.cardEvents.forEach((evtText, i) => {
-                const sq = document.createElement('div');
-                sq.className = 'bingo-square';
-                sq.dataset.index = i;
-                sq.textContent = evtText;
-                if (i === 12) sq.classList.add('free-space');
-                
-                sq.addEventListener('click', () => {
-                    if (i === 12) return; // Don't unclick free space
-                    sendMqtt({ type: 'CLICK', index: i });
-                });
-                
-                grid.appendChild(sq);
+        // If the number of cards changed (or init), rebuild DOM
+        if (currentDomCards.length !== cardCount) {
+            myCardContainer.innerHTML = '';
+            playerData.cards.forEach((cardData, index) => {
+                myCardContainer.appendChild(createCardDOM(playerData.name, index, cardData));
             });
-            card.appendChild(grid);
-            myCardContainer.appendChild(card);
         }
 
-        // Update Classes based on markedIndices
-        const squares = grid.querySelectorAll('.bingo-square');
-        squares.forEach(sq => {
-            const idx = parseInt(sq.dataset.index);
-            if (playerData.markedIndices.includes(idx)) {
-                sq.classList.add('marked');
+        // Update States (Classes) for all cards
+        const domCards = myCardContainer.querySelectorAll('.bingo-card');
+        playerData.cards.forEach((cardData, cIndex) => {
+            const cardEl = domCards[cIndex];
+            const squares = cardEl.querySelectorAll('.bingo-square');
+            
+            // Update squares
+            squares.forEach(sq => {
+                const sIdx = parseInt(sq.dataset.sqIndex);
+                if (cardData.markedIndices.includes(sIdx)) {
+                    sq.classList.add('marked');
+                } else {
+                    sq.classList.remove('marked');
+                }
+            });
+
+            // Update Header for Bingo
+            const headerSpan = cardEl.querySelector('.card-header span');
+            if (cardData.hasBingo) {
+                cardEl.querySelector('.card-header').classList.add('bingo-active');
+                headerSpan.textContent = `${playerData.name} #${cIndex+1} - BINGO!`;
             } else {
-                sq.classList.remove('marked');
+                cardEl.querySelector('.card-header').classList.remove('bingo-active');
+                headerSpan.textContent = `${playerData.name} #${cIndex+1}`;
             }
         });
+    }
 
-        // Bingo Alert?
-        if (playerData.hasBingo) {
-            // Could add visual flair here
-            document.querySelector('.card-header').style.backgroundColor = '#28a745';
-            document.querySelector('.card-header span').textContent = `${playerData.name} - BINGO! 🎉`;
-        } else {
-             document.querySelector('.card-header span').textContent = playerData.name;
-             document.querySelector('.card-header').style.backgroundColor = ''; // reset to variable
-        }
+    function createCardDOM(playerName, cardIndex, cardData) {
+        const card = document.createElement('div');
+        card.className = 'bingo-card';
+        card.dataset.cardIndex = cardIndex;
+
+        const header = document.createElement('div');
+        header.className = 'card-header';
+        header.innerHTML = `<span>${playerName} #${cardIndex+1}</span>`;
+        card.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.className = 'bingo-grid';
+
+        cardData.events.forEach((text, sqIndex) => {
+            const sq = document.createElement('div');
+            sq.className = 'bingo-square';
+            sq.dataset.sqIndex = sqIndex; // which square is this?
+            sq.textContent = text;
+            if (sqIndex === 12) sq.classList.add('free-space');
+
+            sq.addEventListener('click', () => {
+                if (sqIndex === 12) return;
+                // Send Card Index AND Square Index
+                sendMqtt({ type: 'CLICK', cardIndex: cardIndex, squareIndex: sqIndex });
+            });
+            grid.appendChild(sq);
+        });
+
+        card.appendChild(grid);
+        return card;
     }
 
     function renderScoreboard(players) {
         scoreboardList.innerHTML = '';
         Object.values(players).forEach(p => {
+            let totalBingos = 0;
+            let totalMarks = 0;
+            p.cards.forEach(c => {
+                if(c.hasBingo) totalBingos++;
+                totalMarks += (c.markedIndices.length - 1);
+            });
+
             const row = document.createElement('div');
             row.className = 'score-row';
-            row.style.display = 'flex';
-            row.style.justifyContent = 'space-between';
-            row.style.padding = '5px';
-            row.style.borderBottom = '1px solid #ddd';
             
-            const squaresMarked = p.markedIndices.length - 1; // minus free space
-            let txt = `${p.name}: ${squaresMarked} events`;
-            if (p.hasBingo) txt += " 🏆 BINGO!";
-            
+            let txt = `${p.name}: ${totalMarks} marks`;
+            if (totalBingos > 0) {
+                txt += ` | 🏆 ${totalBingos} BINGO(S)!`;
+                row.style.fontWeight = 'bold';
+                row.style.color = 'green';
+            }
             row.textContent = txt;
-            if (p.hasBingo) row.style.fontWeight = 'bold';
-            row.style.color = p.hasBingo ? 'green' : 'inherit';
-            
             scoreboardList.appendChild(row);
         });
     }
-
 });
