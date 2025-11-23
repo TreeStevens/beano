@@ -1,79 +1,638 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NFL Bingo Live</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- MQTT Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #007bff;
+            --bg: #f0f2f5;
+            --card-primary: #fca311;
+            --card-secondary: #ffffff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: #333;
+            margin: 0;
+            padding: 15px;
+            padding-bottom: 50px;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; }
+        .hidden { display: none !important; }
+
+        h1 { text-align: center; margin-top: 0; font-size: 1.8rem; }
+
+        /* LOBBY STYLES */
+        .card-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 5px; }
+        
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px; /* Prevents zoom on mobile */
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:active { opacity: 0.8; }
+        
+        .secondary-btn { background-color: #6c757d; margin-top: 10px; }
+        .reset-btn { background-color: #dc3545; }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            color: #999;
+            font-size: 0.9rem;
+            position: relative;
+        }
+        .divider::before {
+            content: "";
+            position: absolute;
+            top: 50%; left: 0; right: 0;
+            border-top: 1px solid #ddd;
+            z-index: -1;
+        }
+        .divider span { background: var(--bg); padding: 0 10px; }
+
+        /* GAME SCREEN */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 25px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        #host-controls {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+        }
+        #host-controls select {
+            width: 100%; padding: 10px; border-radius: 6px; margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        /* BINGO CARDS */
+        #my-card-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .bingo-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 350px; /* Mobile optimized */
+            flex: 1 1 300px;
+        }
+
+        .card-header {
+            background-color: var(--card-primary);
+            color: var(--card-secondary);
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: background 0.3s;
+        }
+        .card-header.bingo-win {
+            background-color: #28a745 !important;
+            color: white !important;
+            animation: pulse 1s infinite;
+        }
+
+        .bingo-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            aspect-ratio: 1/1;
+            border-top: 1px solid #eee;
+        }
+
+        .bingo-square {
+            border: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 11px;
+            padding: 2px;
+            user-select: none;
+            cursor: pointer;
+            background: #fafafa;
+            line-height: 1.2;
+            overflow: hidden;
+            word-break: break-word;
+        }
+        .bingo-square:active { background: #eee; }
+        
+        .bingo-square.marked {
+            background-color: #28a745;
+            color: white;
+            text-decoration: line-through;
+            opacity: 0.9;
+        }
+
+        .free-space {
+            background-color: var(--card-primary) !important;
+            color: var(--card-secondary) !important;
+            font-weight: 900;
+            font-size: 0.9rem;
+        }
+
+        /* SCOREBOARD */
+        .scoreboard {
+            margin-top: 30px;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+        }
+        .score-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .score-item.winner { color: green; font-weight: bold; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+    </style>
 </head>
-
 <body>
-    <div class="container">
-        <h1>🏈 NFL Bingo Live</h1>
 
-        <!-- LOBBY SCREEN -->
-        <div id="lobby-screen">
-            <div class="controls">
-                <div class="input-group">
-                    <label>Your Name:</label>
-                    <input type="text" id="username" placeholder="e.g. Switch">
-                </div>
-                
-                <div class="lobby-actions">
-                    <!-- HOST SECTION -->
-                    <div class="action-box">
-                        <h3>Host a Game</h3>
-                        
-                        <!-- NEW INPUT HERE -->
-                        <div class="setting-row">
-                            <label for="cards-count-input">Cards per Player:</label>
-                            <input type="number" id="cards-count-input" value="1" min="1" max="4">
-                        </div>
+<div class="container">
+    <h1>🏈 NFL Bingo Live</h1>
 
-                        <button id="create-btn">Create Room</button>
-                    </div>
-
-                    <!-- JOIN SECTION -->
-                    <div class="action-box">
-                        <h3>Join a Game</h3>
-                        <input type="text" id="room-code-input" placeholder="ABCD" maxlength="4" style="text-transform:uppercase">
-                        <button id="join-btn">Join Room</button>
-                    </div>
-                </div>
-                <p id="connection-status">Status: Disconnected</p>
+    <!-- VIEW: LOBBY -->
+    <div id="lobby-view">
+        <div class="card-box">
+            <div class="input-group">
+                <label>Your Name</label>
+                <input type="text" id="player-name" placeholder="Enter your name...">
             </div>
         </div>
 
-        <!-- GAME SCREEN -->
-        <div id="game-screen" class="hidden">
-            <div class="game-header">
-                <div id="room-display">Room: <span id="current-room-code">----</span></div>
-                
-                <div id="host-controls" class="hidden">
-                    <select id="team-select"></select>
-                    <button id="new-game-btn">Reset/New Cards</button>
-                </div>
+        <!-- HOST -->
+        <div class="card-box" style="border-left: 5px solid #007bff;">
+            <h3>Host a Game</h3>
+            <div class="input-group">
+                <label>Cards Per Player (1-4)</label>
+                <input type="number" id="card-count-setting" value="1" min="1" max="4">
             </div>
-
-            <div class="info-bar">
-                <img id="team-logo" class="hidden" src="" alt="Logo">
-                <span id="player-count">Players: 0</span>
-            </div>
-
-            <!-- This container will now hold MULTIPLE cards -->
-            <div id="my-card-container"></div>
-
-            <div id="scoreboard-container" class="hidden">
-                <h3>Live Scoreboard</h3>
-                <div id="scoreboard-list"></div>
-            </div>
+            <button id="btn-host">Create Room</button>
         </div>
+
+        <div class="divider"><span>OR</span></div>
+
+        <!-- JOIN -->
+        <div class="card-box" style="border-left: 5px solid #6c757d;">
+            <h3>Join a Game</h3>
+            <div class="input-group">
+                <label>Room Code</label>
+                <input type="text" id="room-code-input" placeholder="ABCD" maxlength="4" style="text-transform: uppercase;">
+            </div>
+            <button id="btn-join" class="secondary-btn">Join Room</button>
+        </div>
+        
+        <p style="text-align:center; font-size:0.8rem; color:#666;" id="status-msg">Ready to connect...</p>
     </div>
 
-    <script src="script.js" defer></script>
-</body>
+    <!-- VIEW: GAME -->
+    <div id="game-view" class="hidden">
+        <div class="status-bar">
+            <span>Room: <span id="display-room-code" style="background:#eee; padding:2px 6px; border-radius:4px;">----</span></span>
+            <span id="player-count-badge">👤 1</span>
+        </div>
 
+        <!-- HOST ONLY CONTROLS -->
+        <div id="host-controls" class="hidden">
+            <label><strong>Host Controls:</strong></label>
+            <select id="team-selector">
+                <option value="None">Select Active Team...</option>
+            </select>
+            <button class="reset-btn" id="btn-reset-game">Generate New Cards</button>
+        </div>
+
+        <!-- CARDS AREA -->
+        <div id="my-card-container"></div>
+
+        <!-- SCOREBOARD -->
+        <div class="scoreboard hidden" id="scoreboard-area">
+            <h3>Live Scores</h3>
+            <div id="score-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ======================================================
+    // CONFIG & DATA
+    // ======================================================
+    const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
+    const APP_ID = 'nflbingo_v3'; // Version bump to force fresh logic
+
+    // State
+    let client;
+    let myId = 'p_' + Math.random().toString(36).substr(2, 8);
+    let myName = '';
+    let roomCode = '';
+    let isHost = false;
+    
+    // The Game State (Synced from Host)
+    let gameState = {
+        config: { cardsPerPlayer: 1 },
+        team: "None",
+        players: {} // id -> { name, cards: [ { events:[], marked:[], hasBingo:false } ] }
+    };
+
+    // NFL Data
+    const EVENT_POOL = [
+        "Touchdown", "Field Goal", "First Down", "QB Scramble", "4th Down Try", "Pass > 20 Yds", 
+        "Run > 10 Yds", "3rd & Long Conv", "Screen > 10 Yds", "Play Action", "QB Sneak", 
+        "Hail Mary", "Empty Backfield", "Shotgun", "Trick Play", "Fake Punt", "Sack", 
+        "Tackle for Loss", "Pass Defended", "Tipped Pass", "Throw Away", "Interception", 
+        "Fumble", "Turnover on Downs", "Defensive TD", "Goal Line Stand", "3-and-Out", 
+        "Blocked Kick", "Holding", "False Start", "Pass Interference", "Delay of Game", 
+        "Roughing Passer", "Face Mask", "Timeout", "2-Min Warning", "Challenge Flag", 
+        "Measurement", "Overtime", "Coach Yelling", "Mascot", "Fan Face Paint", 
+        "Shirtless Fan", "Beer Ad", "Helmet Throw", "Cheerleader", "Celebrity", 
+        "One-Handed Catch", "Drop", "Announcers on Cam"
+    ];
+
+    const TEAMS = {
+        "None": { p: "#fca311", s: "#ffffff" },
+        "ARI": { p: "#97233F", s: "#000000" }, "ATL": { p: "#A71930", s: "#000000" },
+        "BAL": { p: "#241773", s: "#9E7C0C" }, "BUF": { p: "#00338D", s: "#C60C30" },
+        "CAR": { p: "#0085CA", s: "#000000" }, "CHI": { p: "#0B162A", s: "#C83803" },
+        "CIN": { p: "#FB4F14", s: "#000000" }, "CLE": { p: "#311D00", s: "#FF3C00" },
+        "DAL": { p: "#041E42", s: "#869397" }, "DEN": { p: "#FB4F14", s: "#002244" },
+        "DET": { p: "#0076B6", s: "#B0B7BC" }, "GB":  { p: "#203731", s: "#FFB612" },
+        "HOU": { p: "#03202F", s: "#A71930" }, "IND": { p: "#002C5F", s: "#A2AAAD" },
+        "JAX": { p: "#006778", s: "#9F792C" }, "KC":  { p: "#E31837", s: "#FFB81C" },
+        "LV":  { p: "#000000", s: "#A5ACAF" }, "LAC": { p: "#0080C6", s: "#FFC20E" },
+        "LAR": { p: "#003594", s: "#FFD100" }, "MIA": { p: "#008E97", s: "#FC4C02" },
+        "MIN": { p: "#4F2683", s: "#FFC62F" }, "NE":  { p: "#002244", s: "#C60C30" },
+        "NO":  { p: "#D3BC8D", s: "#000000" }, "NYG": { p: "#0B2265", s: "#A71930" },
+        "NYJ": { p: "#125740", s: "#FFFFFF" }, "PHI": { p: "#004C54", s: "#A5ACAF" },
+        "PIT": { p: "#FFB612", s: "#101820" }, "SF":  { p: "#AA0000", s: "#B3995D" },
+        "SEA": { p: "#002244", s: "#69BE28" }, "TB":  { p: "#D50A0A", s: "#34302B" },
+        "TEN": { p: "#0C2340", s: "#4B92DB" }, "WAS": { p: "#5A1414", s: "#FFB612" }
+    };
+
+    const WINS = [
+        [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24], // Rows
+        [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24], // Cols
+        [0,6,12,18,24], [4,8,12,16,20] // Diagonals
+    ];
+
+    // ======================================================
+    // DOM REFERENCES
+    // ======================================================
+    const $ = (id) => document.getElementById(id);
+    
+    // Init Team Select
+    const teamSel = $('team-selector');
+    Object.keys(TEAMS).forEach(t => {
+        if(t !== "None") {
+            let opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            teamSel.appendChild(opt);
+        }
+    });
+
+    // ======================================================
+    // LOGIC: START GAME
+    // ======================================================
+    
+    $('btn-host').addEventListener('click', () => {
+        const name = $('player-name').value.trim() || "Host";
+        const cardCount = parseInt($('card-count-setting').value) || 1;
+        
+        initGame(name, generateRoomCode(), true);
+        
+        // HOST INIT LOGIC
+        gameState.config.cardsPerPlayer = Math.max(1, Math.min(4, cardCount));
+        gameState.players[myId] = createPlayerObject(name);
+        
+        connectMqtt();
+    });
+
+    $('btn-join').addEventListener('click', () => {
+        const name = $('player-name').value.trim();
+        const code = $('room-code-input').value.trim().toUpperCase();
+        if(!name || code.length !== 4) return alert("Please enter a Name and a 4-letter Room Code.");
+        
+        initGame(name, code, false);
+        connectMqtt();
+    });
+
+    function initGame(name, code, host) {
+        myName = name;
+        roomCode = code;
+        isHost = host;
+
+        $('lobby-view').classList.add('hidden');
+        $('game-view').classList.remove('hidden');
+        $('display-room-code').textContent = roomCode;
+
+        if(isHost) {
+            $('host-controls').classList.remove('hidden');
+            $('scoreboard-area').classList.remove('hidden');
+        }
+    }
+
+    function generateRoomCode() {
+        return Math.random().toString(36).substr(2, 4).toUpperCase();
+    }
+
+    // ======================================================
+    // LOGIC: DATA HELPERS
+    // ======================================================
+
+    function createPlayerObject(name) {
+        // Generate N cards based on config
+        const cards = [];
+        for(let i=0; i<gameState.config.cardsPerPlayer; i++) {
+            cards.push({
+                events: generateBoard(),
+                marked: [12], // Free space
+                hasBingo: false
+            });
+        }
+        return { name: name, cards: cards };
+    }
+
+    function generateBoard() {
+        let pool = [...EVENT_POOL].sort(() => Math.random() - 0.5);
+        // Take 24
+        let board = pool.slice(0, 24);
+        // Insert FREE SPACE at index 12
+        board.splice(12, 0, "FREE SPACE");
+        return board;
+    }
+
+    function checkBingo(markedIndices) {
+        return WINS.some(combo => combo.every(idx => markedIndices.includes(idx)));
+    }
+
+    // ======================================================
+    // LOGIC: MQTT NETWORKING
+    // ======================================================
+
+    function connectMqtt() {
+        $('status-msg').textContent = "Connecting...";
+        client = mqtt.connect(MQTT_BROKER);
+        const topic = `${APP_ID}/${roomCode}`;
+
+        client.on('connect', () => {
+            console.log("Connected to", topic);
+            client.subscribe(topic);
+
+            if(isHost) {
+                // HOST LOOP: Broadcast State every 1s
+                setInterval(() => {
+                    send({ type: 'STATE', data: gameState });
+                }, 1000);
+            } else {
+                // CLIENT LOOP: Knock until answered
+                let attempts = 0;
+                const joinInt = setInterval(() => {
+                    if(gameState.players[myId]) {
+                        clearInterval(joinInt);
+                    } else {
+                        send({ type: 'JOIN', name: myName });
+                        attempts++;
+                        if(attempts > 5) $('player-count-badge').textContent = "Connecting...";
+                    }
+                }, 1500);
+            }
+        });
+
+        client.on('message', (t, msg) => {
+            const payload = JSON.parse(msg.toString());
+            if(payload.sender === myId) return; // Ignore self
+
+            if(isHost) handleHostMsg(payload);
+            else handleClientMsg(payload);
+        });
+    }
+
+    function send(msg) {
+        msg.sender = myId;
+        client.publish(`${APP_ID}/${roomCode}`, JSON.stringify(msg));
+    }
+
+    // ======================================================
+    // LOGIC: MESSAGE HANDLING
+    // ======================================================
+
+    function handleHostMsg(msg) {
+        if(msg.type === 'JOIN') {
+            if(!gameState.players[msg.sender]) {
+                gameState.players[msg.sender] = createPlayerObject(msg.name);
+                // Force immediate update
+                send({ type: 'STATE', data: gameState });
+            }
+        }
+        else if(msg.type === 'CLICK') {
+            const { sender, cardIdx, cellIdx } = msg;
+            const p = gameState.players[sender];
+            if(p && p.cards[cardIdx]) {
+                const c = p.cards[cardIdx];
+                // Toggle Mark
+                if(c.marked.includes(cellIdx)) c.marked = c.marked.filter(x => x !== cellIdx);
+                else c.marked.push(cellIdx);
+                
+                // Check Bingo
+                c.hasBingo = checkBingo(c.marked);
+            }
+        }
+    }
+
+    function handleClientMsg(msg) {
+        if(msg.type === 'STATE') {
+            // Overwrite local state with Server state
+            gameState = msg.data;
+            render();
+        }
+    }
+
+    // ======================================================
+    // LOGIC: RENDERING
+    // ======================================================
+
+    function render() {
+        // 1. Update Stats
+        const pIDs = Object.keys(gameState.players);
+        $('player-count-badge').textContent = `👤 ${pIDs.length}`;
+
+        // 2. Update Colors
+        const t = TEAMS[gameState.team] || TEAMS["None"];
+        document.documentElement.style.setProperty('--card-primary', t.p);
+        document.documentElement.style.setProperty('--card-secondary', t.s);
+
+        // 3. Render My Cards
+        const me = gameState.players[myId];
+        if(me) {
+            const container = $('my-card-container');
+            // Simple Diffing: If card count matches, update classes. If not, rebuild.
+            const domCards = container.querySelectorAll('.bingo-card');
+            
+            if(domCards.length !== me.cards.length) {
+                container.innerHTML = '';
+                me.cards.forEach((cardData, idx) => {
+                    container.appendChild(createCardDOM(me.name, idx, cardData));
+                });
+            } else {
+                // Update existing DOM
+                me.cards.forEach((cardData, cIdx) => {
+                    updateCardDOM(domCards[cIdx], me.name, cIdx, cardData);
+                });
+            }
+        }
+
+        // 4. Render Scoreboard (Host)
+        if(isHost) {
+            const list = $('score-list');
+            list.innerHTML = '';
+            Object.values(gameState.players).forEach(p => {
+                let bingos = 0;
+                let marks = 0;
+                p.cards.forEach(c => {
+                    if(c.hasBingo) bingos++;
+                    marks += (c.marked.length - 1); // subtract free space
+                });
+
+                const div = document.createElement('div');
+                div.className = 'score-item';
+                if(bingos > 0) div.classList.add('winner');
+                div.innerHTML = `
+                    <span>${p.name}</span>
+                    <span>${bingos > 0 ? '🏆 BINGO!' : marks + ' marks'}</span>
+                `;
+                list.appendChild(div);
+            });
+        }
+    }
+
+    function createCardDOM(playerName, cardIdx, cardData) {
+        const div = document.createElement('div');
+        div.className = 'bingo-card';
+        
+        // Header
+        const header = document.createElement('div');
+        header.className = 'card-header';
+        header.textContent = `${playerName} - Card ${cardIdx + 1}`;
+        div.appendChild(header);
+
+        // Grid
+        const grid = document.createElement('div');
+        grid.className = 'bingo-grid';
+        
+        cardData.events.forEach((txt, i) => {
+            const cell = document.createElement('div');
+            cell.className = 'bingo-square';
+            if(i === 12) cell.classList.add('free-space');
+            if(cardData.marked.includes(i)) cell.classList.add('marked');
+            cell.textContent = txt;
+            
+            cell.addEventListener('click', () => {
+                if(i === 12) return;
+                // Optimistic Update (makes it feel instant)
+                cell.classList.toggle('marked');
+                // Send to Server
+                send({ type: 'CLICK', cardIdx: cardIdx, cellIdx: i });
+            });
+            
+            grid.appendChild(cell);
+        });
+
+        div.appendChild(grid);
+        return div;
+    }
+
+    function updateCardDOM(domEl, playerName, cardIdx, cardData) {
+        // Update Header (Win state)
+        const header = domEl.querySelector('.card-header');
+        if(cardData.hasBingo) {
+            header.classList.add('bingo-win');
+            header.textContent = `${playerName} - BINGO!!!`;
+        } else {
+            header.classList.remove('bingo-win');
+            header.textContent = `${playerName} - Card ${cardIdx + 1}`;
+        }
+
+        // Update Squares
+        const squares = domEl.querySelectorAll('.bingo-square');
+        squares.forEach((sq, i) => {
+            if(cardData.marked.includes(i)) sq.classList.add('marked');
+            else sq.classList.remove('marked');
+        });
+    }
+
+    // ======================================================
+    // LOGIC: GAME CONTROLS
+    // ======================================================
+    
+    $('team-selector').addEventListener('change', (e) => {
+        gameState.team = e.target.value;
+        // Host doesn't need to manually send, the loop handles it
+    });
+
+    $('btn-reset-game').addEventListener('click', () => {
+        if(confirm("Clear board and generate new cards for everyone?")) {
+            Object.keys(gameState.players).forEach(pid => {
+                gameState.players[pid] = createPlayerObject(gameState.players[pid].name);
+            });
+        }
+    });
+
+</script>
+
+</body>
 </html>
