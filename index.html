@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v2.0</title>
+    <title>NFL BEANO v2.5</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 
@@ -101,34 +101,28 @@
 
         .player-block {
             background: #1e293b; border-radius: 12px; padding: 10px;
-            border: 1px solid #334155;
+            border: 2px solid #334155; /* Default border, overridden by JS */
             width: 100%; max-width: 340px;
             display: flex; flex-direction: column; gap: 10px;
             position: relative;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
         }
         
-        /* When someone wins */
-        .player-block.winner {
-            border: 2px solid var(--gold);
-            box-shadow: 0 0 30px rgba(251, 191, 36, 0.2);
-            animation: pulseBorder 2s infinite;
-        }
-        @keyframes pulseBorder { 0% { border-color: var(--gold); } 50% { border-color: white; } 100% { border-color: var(--gold); } }
-
         .player-name {
             text-align: center; font-family: 'Teko'; font-size: 1.5rem; 
-            color: #cbd5e1; line-height: 1;
+            color: #cbd5e1; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
         /* BINGO CARD */
         .bingo-card {
             background: black; border-radius: 6px; overflow: hidden;
+            border: 1px solid #333;
         }
         
         .card-header {
-            padding: 5px; text-align: center; font-weight: bold; font-size: 0.8rem;
+            padding: 5px; text-align: center; font-weight: bold; font-size: 0.9rem;
             color: white; text-transform: uppercase; letter-spacing: 1px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         }
 
         .grid {
@@ -140,21 +134,42 @@
         .cell {
             background: #f8fafc;
             display: flex; align-items: center; justify-content: center;
-            text-align: center; font-size: 0.65rem; padding: 2px;
-            color: #0f172a; user-select: none; cursor: default;
-            line-height: 1.1; word-break: break-word;
-            font-weight: 500;
+            text-align: center; 
+            font-size: 10px; /* Base size */
+            padding: 2px;
+            color: #0f172a; 
+            user-select: none; cursor: default;
+            line-height: 1.2; 
+            /* PREVENT SPLITTING WORDS */
+            word-break: normal; 
+            overflow-wrap: break-word; 
+            hyphens: none;
+            font-weight: 600;
         }
 
         /* Styles for MY cards */
-        .is-me .cell { cursor: pointer; font-size: 0.75rem; }
+        .is-me .cell { cursor: pointer; }
         .is-me .cell:active { background: #e2e8f0; }
 
         /* States */
-        .cell.marked { background: var(--green) !important; color: white !important; text-decoration: line-through; }
-        .cell.free { background: #0f172a !important; color: var(--accent) !important; font-weight: bold; border: none; }
+        .cell.marked { background: var(--green) !important; color: white !important; }
+        .cell.free { color: white !important; font-weight: bold; border: none; font-size: 11px; }
         
-        .cell.winning-line { background: var(--gold) !important; color: black !important; text-decoration: none; font-weight: bold; }
+        /* Winning Animation */
+        .player-block.winner {
+            animation: pulseBorder 1s infinite alternate;
+            z-index: 10;
+        }
+        @keyframes pulseBorder { 
+            from { box-shadow: 0 0 10px var(--gold); transform: scale(1); } 
+            to { box-shadow: 0 0 25px var(--gold); transform: scale(1.02); } 
+        }
+
+        .cell.winning-line { 
+            background: var(--gold) !important; 
+            color: black !important; 
+            font-weight: 800;
+        }
 
         /* Host Controls */
         #host-controls { 
@@ -185,16 +200,25 @@
     <div id="lobby">
         <div class="lobby-panel">
             <h1>NFL BEANO</h1>
-            <span class="version">v2.0 - Stadium Edition</span>
+            <span class="version">v2.5 - Team Styles</span>
 
             <div class="input-group">
                 <label>Player Name</label>
                 <input type="text" id="username" placeholder="Enter Name..." maxlength="12">
             </div>
 
+            <!-- Global Team Pick for User -->
+            <div class="input-group">
+                <label>Your Team Style</label>
+                <select id="lobby-team-select">
+                    <option value="None">Neutral / Referee</option>
+                    <!-- Teams Injected via JS -->
+                </select>
+            </div>
+
             <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 15px;">
                 <div class="input-group">
-                    <label>Cards Per Player</label>
+                    <label>Cards Per Player (Host Only)</label>
                     <select id="card-count">
                         <option value="1">1 Card</option>
                         <option value="2">2 Cards</option>
@@ -223,9 +247,10 @@
                 <span class="room-badge" id="room-display">----</span>
             </div>
             <div>
-                <select id="theme-select" onchange="updateTheme()" style="padding:5px; width:auto; font-size:0.8rem;">
+                <!-- In-game switcher -->
+                <select id="ingame-team-select" onchange="updateMyTeam()" style="padding:5px; width:auto; font-size:0.8rem;">
                     <option value="None">Theme: Neutral</option>
-                    <!-- Teams injected via JS -->
+                    <!-- Teams Injected -->
                 </select>
             </div>
         </div>
@@ -270,6 +295,7 @@
         "Truck Ad", "Beer Ad", "Helmet Throw", "Cheerleader", "Celebrity", "Hurdle", "Juke", "One-Handed Catch"
     ];
 
+    // Format: Primary Color, Text/Secondary Color (unused currently, mainly for reference or borders)
     const TEAMS = {
         "None": "#1e293b", "ARI": "#97233F", "ATL": "#A71930", "BAL": "#241773", "BUF": "#00338D", 
         "CAR": "#0085CA", "CHI": "#0B162A", "CIN": "#FB4F14", "CLE": "#311D00", "DAL": "#041E42", 
@@ -287,7 +313,7 @@
     ];
 
     const MQTT_HOST = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC_PRE = 'nfl_beano_v2';
+    const TOPIC_PRE = 'nfl_beano_v2_5';
 
     // =================================================================
     // 2. STATE
@@ -297,20 +323,23 @@
     let myName = "Player";
     let roomCode = "";
     let isHost = false;
-    let currentTheme = "None";
+    let myTeam = "None"; // My chosen team
     
     // THE MASTER STATE (Everyone has a full copy)
     let gameState = {
-        players: {} // id -> { name, cards: [ { events:[], marked:[], winLine:[] } ] }
+        players: {} // id -> { name, team, cards: [ { events:[], marked:[], winLine:[] } ] }
     };
 
-    // Init Team Selector
-    const ts = document.getElementById('theme-select');
+    // Init Team Selectors
+    const lobbySel = document.getElementById('lobby-team-select');
+    const gameSel = document.getElementById('ingame-team-select');
+    
     for(let t in TEAMS) {
         if(t!=="None") {
-            let o = document.createElement('option');
-            o.value = t; o.textContent = t;
-            ts.appendChild(o);
+            let o1 = document.createElement('option'); o1.value = t; o1.textContent = t;
+            let o2 = document.createElement('option'); o2.value = t; o2.textContent = t;
+            lobbySel.appendChild(o1);
+            gameSel.appendChild(o2);
         }
     }
 
@@ -319,12 +348,16 @@
     // =================================================================
     function startHost() {
         myName = document.getElementById('username').value.trim() || "Host";
+        myTeam = lobbySel.value;
         const count = parseInt(document.getElementById('card-count').value);
         roomCode = Math.random().toString(36).substr(2, 4).toUpperCase();
         isHost = true;
 
-        // Host Generates their own cards immediately
-        gameState.players[myId] = generatePlayer(myName, count);
+        // Sync In-Game Selector
+        gameSel.value = myTeam;
+
+        // Host Generates their own cards immediately with team
+        gameState.players[myId] = generatePlayer(myName, myTeam, count);
 
         showGame();
         connectMQTT();
@@ -332,9 +365,13 @@
 
     function startJoin() {
         myName = document.getElementById('username').value.trim() || "Guest";
+        myTeam = lobbySel.value;
         roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
         if(roomCode.length !== 4) return alert("Invalid Code");
         isHost = false;
+
+        // Sync In-Game Selector
+        gameSel.value = myTeam;
 
         showGame();
         connectMQTT();
@@ -349,8 +386,8 @@
         renderBoard();
     }
 
-    function generatePlayer(name, count) {
-        let p = { name: name, cards: [] };
+    function generatePlayer(name, team, count) {
+        let p = { name: name, team: team, cards: [] };
         for(let i=0; i<count; i++) {
             let deck = [...EVENTS].sort(()=>Math.random()-0.5).slice(0, 24);
             deck.splice(12, 0, "FREE"); // Free space center
@@ -366,9 +403,16 @@
     // =================================================================
     // 4. RENDERING
     // =================================================================
-    function updateTheme() {
-        currentTheme = document.getElementById('theme-select').value;
-        renderBoard();
+    function updateMyTeam() {
+        myTeam = gameSel.value;
+        // Update local state
+        if(gameState.players[myId]) {
+            gameState.players[myId].team = myTeam;
+            // Render immediate
+            renderBoard();
+            // Broadcast change
+            send({ type: 'UPDATE_TEAM', team: myTeam });
+        }
     }
 
     function renderBoard() {
@@ -377,7 +421,6 @@
         
         myArea.innerHTML = '';
         
-        // Separate me from opponents
         const opponentIds = Object.keys(gameState.players).filter(id => id !== myId);
         
         if(opponentIds.length > 0) fieldArea.innerHTML = '';
@@ -397,16 +440,25 @@
     function renderPlayerBlock(pData, isMe, container) {
         const block = document.createElement('div');
         block.className = 'player-block ' + (isMe ? 'is-me' : '');
+        
+        // Apply Team Styles
+        const teamColor = TEAMS[pData.team] || TEAMS["None"];
+        block.style.borderColor = teamColor;
 
         // Check Winner
         const isWinner = pData.cards.some(c => c.winLine.length > 0);
-        if(isWinner) block.classList.add('winner');
+        if(isWinner) {
+            block.classList.add('winner');
+            block.style.borderColor = 'var(--gold)';
+        }
 
         // Header
         const nameDisplay = document.createElement('div');
         nameDisplay.className = 'player-name';
         nameDisplay.innerHTML = `${pData.name} ${isWinner ? '🏆' : ''}`;
+        nameDisplay.style.color = teamColor; // Team Color Name
         if(isWinner) nameDisplay.style.color = 'var(--gold)';
+        
         block.appendChild(nameDisplay);
 
         // Cards
@@ -417,8 +469,11 @@
             const head = document.createElement('div');
             head.className = 'card-header';
             head.textContent = `CARD ${cIdx+1}`;
-            head.style.backgroundColor = isWinner ? 'var(--gold)' : TEAMS[currentTheme];
-            if(isWinner) head.style.color = 'black';
+            head.style.backgroundColor = teamColor; // Team Color Header
+            if(isWinner) {
+                head.style.backgroundColor = 'var(--gold)';
+                head.style.color = 'black';
+            }
             cardDiv.appendChild(head);
 
             const grid = document.createElement('div');
@@ -429,7 +484,11 @@
                 cell.className = 'cell';
                 cell.textContent = txt;
 
-                if(idx===12) cell.classList.add('free');
+                // Styles
+                if(idx===12) {
+                    cell.classList.add('free');
+                    cell.style.backgroundColor = teamColor; // Free space is team color
+                }
                 if(card.marked.includes(idx)) cell.classList.add('marked');
                 if(card.winLine.includes(idx)) cell.classList.add('winning-line');
 
@@ -438,11 +497,9 @@
                     cell.onclick = () => {
                         if(idx===12) return;
                         
-                        // Logic
                         if(card.marked.includes(idx)) card.marked = card.marked.filter(x=>x!==idx);
                         else card.marked.push(idx);
 
-                        // Win Check
                         const w = checkWin(card.marked);
                         if(w) {
                             card.winLine = w;
@@ -451,7 +508,6 @@
                             card.winLine = [];
                         }
 
-                        // Render & Send
                         renderBoard();
                         send({ type: 'UPDATE', pData: pData });
                     };
@@ -495,7 +551,7 @@
                 const loop = setInterval(() => {
                     if(gameState.players[myId]) clearInterval(loop); // We are in
                     else {
-                        send({ type: 'JOIN', name: myName });
+                        send({ type: 'JOIN', name: myName, team: myTeam });
                         tries++;
                     }
                 }, 2000);
@@ -509,30 +565,33 @@
             if(isHost) {
                 if(msg.type === 'JOIN') {
                     if(!gameState.players[msg.sender]) {
-                        // Create player matching host card count
                         const count = gameState.players[myId].cards.length;
-                        gameState.players[msg.sender] = generatePlayer(msg.name, count);
+                        gameState.players[msg.sender] = generatePlayer(msg.name, msg.team, count);
                         renderBoard();
                     }
                 }
                 if(msg.type === 'UPDATE') {
                     gameState.players[msg.sender] = msg.pData;
-                    // Did they win?
                     if(msg.pData.cards.some(c => c.winLine.length>0)) triggerCelebration();
                     renderBoard();
+                }
+                if(msg.type === 'UPDATE_TEAM') {
+                    if(gameState.players[msg.sender]) {
+                        gameState.players[msg.sender].team = msg.team;
+                        renderBoard();
+                    }
                 }
             } else {
                 if(msg.type === 'STATE') {
                     // Merge: Don't overwrite my local object to prevent click lag
                     const myLocal = gameState.players[myId];
                     gameState = msg.state;
-                    if(myLocal) gameState.players[myId] = myLocal; // Keep my clicks trusted
+                    if(myLocal) gameState.players[myId] = myLocal; 
                     
-                    // Check celebration
                     const someoneWon = Object.values(gameState.players).some(p => p.cards.some(c => c.winLine.length > 0));
                     if(someoneWon && !window.hasCeleb) {
                         triggerCelebration();
-                        window.hasCeleb = true; // prevent spam
+                        window.hasCeleb = true;
                     }
 
                     renderBoard();
@@ -553,9 +612,8 @@
         if(!isHost) return;
         if(confirm("Generate new cards for everyone?")) {
             Object.keys(gameState.players).forEach(pid => {
-                const name = gameState.players[pid].name;
-                const count = gameState.players[pid].cards.length;
-                gameState.players[pid] = generatePlayer(name, count);
+                const p = gameState.players[pid];
+                gameState.players[pid] = generatePlayer(p.name, p.team, p.cards.length);
             });
             window.hasCeleb = false;
             renderBoard();
@@ -564,7 +622,6 @@
 
     function triggerCelebration() {
         const box = document.getElementById('celebration');
-        // Spawn 10 footballs
         for(let i=0; i<10; i++) {
             let fb = document.createElement('div');
             fb.className = 'football';
