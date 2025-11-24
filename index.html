@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v5.0 - Pop Art</title>
+    <title>NFL BEANO v6.0</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <!-- Fun Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Titan+One&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --primary: #333;
-            --secondary: #555;
+            --team-color: #333; /* Changes based on selection */
             --accent: #fff;
             --gold: #fbbf24;
         }
@@ -21,25 +19,19 @@
         body {
             margin: 0; padding: 0;
             font-family: 'Fredoka', sans-serif;
-            /* Split Background Effect (Blue / Purple vibe from image) */
-            background: linear-gradient(90deg, #0055ff 50%, #4400cc 50%);
-            background-attachment: fixed;
+            background-color: #0f172a; 
             color: #333;
             overflow-x: hidden;
-        }
-
-        /* Mobile background tweak */
-        @media (max-width: 900px) {
-            body { background: #0055ff; }
+            transition: background 0.5s ease;
         }
 
         /* --- LOBBY --- */
         #lobby {
             min-height: 100vh;
             display: flex; justify-content: center; align-items: center;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.9);
             position: fixed; top: 0; left: 0; width: 100%; z-index: 2000;
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(5px);
         }
         .lobby-panel {
             background: white;
@@ -50,7 +42,7 @@
             box-shadow: 0 20px 0px rgba(0,0,0,0.2);
             border: 6px solid #fff;
         }
-        .lobby-panel h1 { font-family: 'Titan One', cursive; font-size: 3rem; margin: 0; color: #0055ff; text-transform: uppercase; letter-spacing: 2px; }
+        .lobby-panel h1 { font-family: 'Titan One', cursive; font-size: 3rem; margin: 0; color: #333; text-transform: uppercase; letter-spacing: 2px; }
         
         .input-group { margin: 20px 0; text-align: left; }
         .input-group label { display: block; font-weight: 800; color: #555; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
@@ -61,7 +53,7 @@
             font-size: 1.1rem; font-family: 'Fredoka', sans-serif; font-weight: 700;
             outline: none;
         }
-        select:focus, input:focus { border-color: #0055ff; }
+        select:focus, input:focus { border-color: #333; }
 
         button {
             width: 100%; padding: 15px;
@@ -75,180 +67,141 @@
         .btn-host { background: #ff4757; color: white; }
         .btn-join { background: #2ed573; color: white; }
 
-        /* --- GAME LAYOUT --- */
+        /* --- GAME AREA --- */
         #game-ui {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 40px;
             padding: 40px 20px;
             min-height: 100vh;
+            width: 100%;
+            display: flex;
+            justify-content: center; /* Center by default */
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 40px;
         }
 
-        /* --- PLAYER ZONE (The wrapper around cards) --- */
+        /* Dynamic Backgrounds */
+        body.solo-mode {
+            background: var(--team-color); /* Full screen single color */
+            background-image: radial-gradient(circle, rgba(255,255,255,0.1) 10%, transparent 10%);
+            background-size: 30px 30px;
+        }
+
+        body.multi-mode {
+            /* Split / VS Background */
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        /* --- PLAYER ZONE --- */
         .player-zone {
-            background-color: var(--primary); /* Dynamic Team Color */
+            background-color: var(--p-primary, #333);
             border-radius: 30px;
             padding: 30px;
             width: auto;
             min-width: 350px;
-            max-width: 100%;
+            /* By default, zones are just blocks. */
+            /* In solo mode, we might scale the main player up slightly */
             border: 8px solid white;
             box-shadow: 0 15px 0 rgba(0,0,0,0.25);
             position: relative;
-            overflow: hidden;
-            transition: transform 0.3s;
+            overflow: visible;
+            transition: all 0.5s ease;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        /* The Confetti Background Pattern */
         .player-zone::before {
             content: ""; position: absolute; inset: 0;
-            background-image: 
-                radial-gradient(circle, rgba(255,255,255,0.15) 15%, transparent 16%),
-                radial-gradient(circle, rgba(255,255,255,0.15) 15%, transparent 16%);
-            background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
-            pointer-events: none;
-        }
-        .player-zone::after {
-            content: ""; position: absolute; inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q 25 20 50 10 T 100 10' stroke='white' fill='none' stroke-width='4' opacity='0.15'/%3E%3C/svg%3E");
-            background-size: 100px 50px;
-            opacity: 0.4; pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5c5 0 5 10 10 10s5-10 10-10' stroke='white' stroke-width='3' fill='none' opacity='0.1'/%3E%3C/svg%3E");
+            opacity: 0.3; pointer-events: none;
         }
 
-        /* --- PLAYER HEADER --- */
+        /* Header Pop-out */
         .zone-header {
-            position: relative; z-index: 5;
+            margin-top: -50px; /* Pop out top */
             display: flex; flex-direction: column; align-items: center;
-            margin-bottom: 20px;
-            margin-top: -50px; /* Pop out effect */
+            margin-bottom: 20px; z-index: 10;
         }
 
         .team-logo {
-            width: 110px; height: 110px;
-            background: white;
-            border-radius: 50%;
-            border: 5px solid white;
-            object-fit: contain;
-            padding: 5px;
+            width: 100px; height: 100px;
+            background: white; border-radius: 50%;
+            border: 5px solid white; object-fit: contain; padding: 5px;
             box-shadow: 0 5px 10px rgba(0,0,0,0.2);
-            margin-bottom: 10px;
-            transform: translateY(40px); /* Push down to overlap border */
         }
 
         .player-name {
-            color: white; font-family: 'Titan One', cursive;
-            font-size: 2.5rem; text-shadow: 3px 3px 0 rgba(0,0,0,0.3);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-top: 10px;
-            z-index: 6;
+            color: white; font-family: 'Titan One', cursive; font-size: 2rem;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.3); text-transform: uppercase;
+            margin-top: 5px;
         }
 
-        /* --- CARD LAYOUT --- */
+        /* Cards Row */
         .cards-row {
-            position: relative; z-index: 5;
-            display: flex; flex-wrap: wrap; gap: 20px;
-            justify-content: center;
+            display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; z-index: 5;
         }
 
-        .card-wrapper {
-            display: flex; flex-direction: column; gap: 10px;
-            width: 300px; /* Fixed readable width */
-        }
+        .card-wrapper { width: 300px; display: flex; flex-direction: column; gap: 10px; }
 
-        /* --- THE BINGO CARD ITSELF --- */
         .bingo-card {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 8px 0 rgba(0,0,0,0.1);
-            border: 4px solid white;
+            background: white; border-radius: 20px; overflow: hidden;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.1); border: 4px solid white;
         }
 
         .card-title {
-            background: var(--secondary); /* Dynamic */
-            color: white;
-            text-align: center; font-weight: 900;
-            padding: 8px; font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            background: var(--p-secondary, #555); color: white;
+            text-align: center; font-weight: 900; padding: 8px;
+            font-size: 1.1rem; text-transform: uppercase;
         }
 
         .grid {
             display: grid; grid-template-columns: repeat(5, 1fr);
-            gap: 2px; background: #fff; 
+            gap: 2px; background: #eee; border: 2px solid #eee;
             aspect-ratio: 1/1;
         }
 
         .cell {
-            background: var(--primary); /* Defaults to team primary */
+            background: var(--p-primary, #333); /* Cells match team */
             display: flex; align-items: center; justify-content: center;
             text-align: center; font-size: 11px; padding: 2px;
-            font-weight: 700; color: white;
-            line-height: 1.1; word-break: normal;
-            user-select: none;
-            border-radius: 2px;
+            font-weight: 700; color: white; line-height: 1.1;
+            user-select: none; border-radius: 2px;
         }
-
-        /* Alternate checkerboard for visual flair */
+        /* Checkerboard effect */
         .cell:nth-child(odd) { filter: brightness(1.1); }
 
-        /* Free Space */
         .cell.free {
-            background: white !important;
-            color: #333 !important;
-            font-size: 14px; font-weight: 900;
-            border: 2px solid #eee;
+            background: white !important; color: #333 !important;
+            font-size: 14px; font-weight: 900; border: 2px solid #eee;
+            display: flex; flex-direction: column; line-height: 1;
         }
-        /* Add logo to free space via background-image later? For now text */
-        .cell.free::after { content: "🏈"; display: block; font-size: 16px; }
-        .cell.free { display: flex; flex-direction: column; gap: 0; }
-        
-        /* Interaction */
+        .cell.free::after { content:"🏈"; font-size:16px; margin-top:2px; }
+
         .is-me .cell:not(.free) { cursor: pointer; }
-        .is-me .cell:not(.free):hover { filter: brightness(1.3); }
-        .is-me .cell:not(.free):active { transform: scale(0.95); }
+        .is-me .cell:not(.free):active { transform: scale(0.9); }
 
-        /* Marked State */
-        .cell.marked {
-            background: #ffbf00 !important; /* Gold/Yellow mark */
-            color: black !important;
-            position: relative;
-        }
-
-        /* Winning Line */
+        .cell.marked { background: #ffbf00 !important; color: black !important; }
+        
         .cell.winning-line {
-            background: #fff !important;
-            color: black !important;
+            background: white !important; color: black !important;
             animation: flash 1s infinite;
         }
         @keyframes flash { 0%{opacity:1} 50%{opacity:0.5} 100%{opacity:1} }
 
-        /* --- REROLL CONTROLS --- */
+        /* Reroll UI */
         .reroll-container {
-            display: flex; justify-content: space-between; align-items: center;
-            background: rgba(255,255,255,0.2);
-            padding: 8px 15px; border-radius: 12px;
-            font-weight: bold; color: white;
-            font-size: 0.9rem;
+            background: rgba(255,255,255,0.2); padding: 8px 15px;
+            border-radius: 12px; display: flex; justify-content: space-between;
+            align-items: center; color: white; font-weight: bold; font-size: 0.9rem;
         }
-        
         .reroll-btn {
-            background: #ff4757; color: white; border: none;
-            padding: 8px 16px; border-radius: 8px;
-            font-family: 'Titan One', cursive;
-            font-size: 0.8rem; cursor: pointer;
-            margin: 0; width: auto; box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+            background: #ff4757; color: white; border: none; padding: 6px 12px;
+            border-radius: 8px; font-family: 'Titan One', cursive; font-size: 0.8rem;
+            cursor: pointer; margin: 0; width: auto; box-shadow: 0 4px 0 rgba(0,0,0,0.2);
         }
-        .reroll-btn:active { transform: translateY(4px); box-shadow: none; }
-        .reroll-btn:disabled { background: #555; color: #aaa; box-shadow: none; transform: none; cursor: default; }
+        .reroll-btn:disabled { background: #555; opacity: 0.6; box-shadow: none; cursor: default; }
 
-        /* --- FLOATING CONTROLS --- */
+        /* Floating Controls */
         .float-controls {
             position: fixed; bottom: 20px; right: 20px; z-index: 1000;
             background: white; padding: 10px; border-radius: 15px;
@@ -256,20 +209,11 @@
             display: flex; gap: 10px; align-items: center;
         }
 
-        /* --- ANIMATIONS --- */
-        .player-zone.winner {
-            border-color: #ffbf00;
-            animation: winnerPulse 1s infinite alternate;
-            z-index: 10;
-        }
-        @keyframes winnerPulse { from {box-shadow: 0 0 20px #ffbf00;} to {box-shadow: 0 0 60px #ffbf00;} }
-
-        #celebration { position: fixed; inset: 0; pointer-events: none; z-index: 5000; overflow: hidden; }
+        #celebration { position: fixed; inset: 0; pointer-events: none; z-index: 5000; }
         .football { position: absolute; font-size: 5rem; animation: spinFly 3s linear infinite; }
         @keyframes spinFly { from { transform: translate(-100px, 100vh) rotate(0deg); } to { transform: translate(120vw, -200px) rotate(720deg); } }
-        
-        .hidden { display: none !important; }
 
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -278,15 +222,14 @@
     <div id="lobby">
         <div class="lobby-panel">
             <h1>NFL Beano</h1>
-            <h3 style="margin-top:0; color:#888;">v5.0</h3>
-
+            
             <div class="input-group">
                 <label>Name</label>
                 <input type="text" id="username" placeholder="ENTER NAME" maxlength="12">
             </div>
 
             <div class="input-group">
-                <label>Team Theme</label>
+                <label>Your Team</label>
                 <select id="lobby-team-select">
                     <option value="None">Select Team...</option>
                     <!-- Teams JS -->
@@ -316,12 +259,7 @@
     </div>
 
     <!-- GAME BOARD -->
-    <div id="game-ui" class="hidden">
-        <!-- Players will be injected here as equal zones -->
-        <div style="width:100%; text-align:center; color:white; font-size:2rem; font-family:'Titan One'; margin-top:100px;" id="waiting-msg">
-            Connecting to Host...
-        </div>
-    </div>
+    <div id="game-ui" class="hidden"></div>
 
     <!-- CONTROLS -->
     <div class="float-controls hidden" id="controls">
@@ -335,10 +273,6 @@
     <div id="celebration"></div>
 
 <script>
-    // =================================================================
-    // 1. DATA & CONFIG
-    // =================================================================
-    // Updated logos to match your screenshot exactly
     const TEAMS = {
         "None": { p: "#333333", s: "#555555", logo: "nfl.svg" },
         "ARI": { p: "#97233F", s: "#000000", logo: "arizona-cardinals.svg" },
@@ -357,7 +291,7 @@
         "IND": { p: "#002C5F", s: "#A2AAAD", logo: "indianapolis-colts.svg" },
         "JAX": { p: "#006778", s: "#9F792C", logo: "jacksonville-jaguars.svg" },
         "KC":  { p: "#E31837", s: "#FFB81C", logo: "kansas-city-chiefs.svg" },
-        "LV":  { p: "#000000", s: "#A5ACAF", logo: "oakland-raiders.svg" }, /* Legacy name from your list */
+        "LV":  { p: "#000000", s: "#A5ACAF", logo: "oakland-raiders.svg" },
         "LAC": { p: "#0080C6", s: "#FFC20E", logo: "los-angeles-chargers.svg" },
         "LAR": { p: "#003594", s: "#FFD100", logo: "los-angeles-rams.svg" },
         "MIA": { p: "#008E97", s: "#FC4C02", logo: "miami-dolphins.svg" },
@@ -394,7 +328,7 @@
     ];
 
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC = 'nfl_beano_v5';
+    const TOPIC = 'nfl_beano_v6';
     let client, myId='u'+Math.random().toString(36).substr(2,5), myName="", myTeam="None", roomCode="", isHost=false;
     let gameState = { players: {} };
 
@@ -408,17 +342,14 @@
         }
     }
 
-    // =================================================================
-    // 2. LOGIC
-    // =================================================================
     function startGame(host) {
         myName = document.getElementById('username').value.trim() || (host?"HOST":"GUEST");
         myTeam = ls.value;
         const count = parseInt(document.getElementById('lobby-count').value);
-        
         isHost = host;
-        roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
+        
         if(host) roomCode = Math.random().toString(36).substr(2,4).toUpperCase();
+        else roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
         
         if(!roomCode) return alert("Need Code");
 
@@ -436,14 +367,15 @@
         document.getElementById('room-display').innerText = roomCode;
         document.getElementById('ingame-team-select').value = myTeam;
         if(isHost) document.getElementById('host-reset-btn').style.display = 'block';
+        
+        // Force background update immediately based on player count (1 initially)
+        updateBackgroundMode();
         render();
     }
 
     function generatePlayer(name, team, count) {
         let p = { name, team, cards: [] };
-        for(let i=0; i<count; i++) {
-            p.cards.push(createCardData());
-        }
+        for(let i=0; i<count; i++) p.cards.push(createCardData());
         return p;
     }
 
@@ -458,11 +390,11 @@
         let p = gameState.players[myId];
         let c = p.cards[cardIndex];
         if(c.rerolls > 0) {
-            if(confirm("Reroll this card? New events will be generated.")) {
+            if(confirm("Reroll? New events will be generated.")) {
                 c.rerolls--;
                 let newData = createCardData();
                 c.events = newData.events;
-                c.marked = [12]; // Keep Free
+                c.marked = [12];
                 c.winLine = [];
                 render();
                 send({ type: 'UPDATE', pData: p });
@@ -474,6 +406,7 @@
         myTeam = document.getElementById('ingame-team-select').value;
         if(gameState.players[myId]) {
             gameState.players[myId].team = myTeam;
+            updateBackgroundMode(); // Update BG if in solo mode
             render();
             send({ type: 'UPDATE_TEAM', team: myTeam });
         }
@@ -484,14 +417,25 @@
         return null;
     }
 
-    // =================================================================
-    // 3. RENDER
-    // =================================================================
+    // Controls background style based on player count
+    function updateBackgroundMode() {
+        const count = Object.keys(gameState.players).length;
+        const body = document.body;
+        if(count <= 1) {
+            body.className = 'solo-mode';
+            const c = TEAMS[myTeam] ? TEAMS[myTeam].p : "#333";
+            body.style.setProperty('--team-color', c);
+        } else {
+            body.className = 'multi-mode';
+            body.style.removeProperty('--team-color');
+        }
+    }
+
     function render() {
         const board = document.getElementById('game-ui');
         board.innerHTML = '';
 
-        // Sort: Me first, then others
+        // Sort so I am always first (if I exist), then others
         const pIds = Object.keys(gameState.players).sort((a,b) => {
             if(a === myId) return -1;
             if(b === myId) return 1;
@@ -499,51 +443,46 @@
         });
 
         if(pIds.length === 0) {
-            document.getElementById('waiting-msg').style.display = 'block';
+            board.innerHTML = '<h2 style="color:white; width:100%; text-align:center; margin-top:100px;">Connecting...</h2>';
             return;
-        } else {
-             // remove waiting msg if exists
-            const wm = document.getElementById('waiting-msg');
-            if(wm) wm.style.display = 'none';
         }
 
         pIds.forEach(id => {
             renderPlayerZone(gameState.players[id], id === myId, board);
         });
+        
+        updateBackgroundMode();
     }
 
     function renderPlayerZone(p, isMe, container) {
         const colors = TEAMS[p.team] || TEAMS["None"];
         
-        // The Player Zone Wrapper
         const zone = document.createElement('div');
-        zone.className = 'player-zone';
-        zone.style.setProperty('--primary', colors.p);
-        zone.style.setProperty('--secondary', colors.s);
+        zone.className = 'player-zone ' + (isMe ? 'is-me' : '');
+        zone.style.setProperty('--p-primary', colors.p);
+        zone.style.setProperty('--p-secondary', colors.s);
         
-        // Winner Animation
         if(p.cards.some(c => c.winLine.length > 0)) zone.classList.add('winner');
 
-        // --- Header ---
+        // Header
         const header = document.createElement('div');
         header.className = 'zone-header';
-
-        // Logo
+        
         const img = document.createElement('img');
         img.className = 'team-logo';
         img.src = `logos/${colors.logo}`;
         img.onerror = function(){ this.style.display='none'; }; 
         header.appendChild(img);
 
-        // Name
         const name = document.createElement('div');
         name.className = 'player-name';
-        name.innerText = p.name + (p.cards.some(c=>c.winLine.length>0) ? " 🏆" : "");
+        name.innerText = p.name;
+        if(p.cards.some(c=>c.winLine.length>0)) name.innerText += " 🏆";
         header.appendChild(name);
         
         zone.appendChild(header);
 
-        // --- Cards Row ---
+        // Cards
         const row = document.createElement('div');
         row.className = 'cards-row';
 
@@ -554,17 +493,12 @@
             const card = document.createElement('div');
             card.className = 'bingo-card';
 
-            // Card Title
             const title = document.createElement('div');
             title.className = 'card-title';
             title.innerText = `CARD ${cIdx+1}`;
-            if(c.winLine.length>0) {
-                title.style.background = "#ffbf00"; 
-                title.style.color = "black";
-            }
+            if(c.winLine.length>0) { title.style.background = "#ffbf00"; title.style.color = "black"; }
             card.appendChild(title);
 
-            // Grid
             const grid = document.createElement('div');
             grid.className = 'grid';
 
@@ -572,32 +506,26 @@
                 const cell = document.createElement('div');
                 cell.className = 'cell';
                 
-                // Free Space
                 if(idx===12) {
                     cell.classList.add('free');
-                    cell.innerHTML = "FREE<br><span style='font-size:16px'>🏈</span>";
                 } else {
                     cell.innerText = evt;
                 }
 
-                // Colors
+                // Interaction
                 if(isMe) {
-                    zone.classList.add('is-me');
                     cell.onclick = () => {
                         if(idx===12) return;
                         if(c.marked.includes(idx)) c.marked = c.marked.filter(x=>x!==idx);
                         else c.marked.push(idx);
-                        
                         const w = checkWin(c.marked);
                         c.winLine = w || [];
                         if(w) celebrate();
-
                         render();
                         send({ type:'UPDATE', pData: p });
                     }
                 }
 
-                // Marked / Win
                 if(c.marked.includes(idx)) cell.classList.add('marked');
                 if(c.winLine.includes(idx)) cell.classList.add('winning-line');
                 
@@ -606,23 +534,15 @@
             card.appendChild(grid);
             wrapper.appendChild(card);
 
-            // Reroll (Me Only)
             if(isMe) {
                 const rrDiv = document.createElement('div');
                 rrDiv.className = 'reroll-container';
-                
-                const countSpan = document.createElement('span');
-                countSpan.innerText = `REROLLS: ${c.rerolls}`;
-                
+                rrDiv.innerHTML = `<span>REROLLS: ${c.rerolls}</span>`;
                 const btn = document.createElement('button');
                 btn.className = 'reroll-btn';
                 btn.innerText = "ROLL NEW";
-                if(c.rerolls <= 0) btn.disabled = true;
-                else {
-                    btn.onclick = () => rerollCard(myId, cIdx);
-                }
-
-                rrDiv.appendChild(countSpan);
+                btn.disabled = c.rerolls <= 0;
+                btn.onclick = () => rerollCard(myId, cIdx);
                 rrDiv.appendChild(btn);
                 wrapper.appendChild(rrDiv);
             }
@@ -634,10 +554,6 @@
         container.appendChild(zone);
     }
 
-
-    // =================================================================
-    // 4. NETWORK
-    // =================================================================
     function connect() {
         client = mqtt.connect(BROKER);
         const t = `${TOPIC}/${roomCode}`;
