@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFL BEANO v7.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NFL BEANO v8.0</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@700&family=Titan+One&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Titan+One&display=swap" rel="stylesheet">
 
     <style>
         :root {
             --bg-color: #0f172a;
+            --card-width: 340px; /* Increased width for readability */
         }
 
         * { box-sizing: border-box; }
@@ -26,7 +27,7 @@
         /* --- LOBBY --- */
         #lobby {
             position: fixed; inset: 0; z-index: 9999;
-            background: rgba(15, 23, 42, 0.95);
+            background: rgba(15, 23, 42, 0.98);
             display: flex; justify-content: center; align-items: center;
         }
         .lobby-card {
@@ -60,34 +61,38 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            align-items: flex-start;
-            padding: 40px 20px;
-            gap: 40px;
+            align-items: flex-start; /* Aligns items to top */
+            padding: 60px 20px;
+            gap: 50px; /* Space between players */
             width: 100%;
             min-height: 100vh;
         }
 
-        /* --- PLAYER CARD --- */
+        /* --- PLAYER ZONE --- */
         .player-zone {
             background: #fff;
             border-radius: 20px;
-            padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
-            border: 8px solid #ccc; /* Default border */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 8px solid #ccc;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            /* Width is flexible but respects card size */
             width: auto;
-            max-width: 100%;
             position: relative;
+            transition: transform 0.3s ease;
         }
         
-        /* HEADER */
+        /* HEADER POP-OUT */
         .player-header {
-            margin-top: -60px;
+            margin-top: -70px;
             display: flex; flex-direction: column; align-items: center;
             margin-bottom: 20px;
+            z-index: 10;
         }
         .team-logo {
-            width: 100px; height: 100px;
+            width: 110px; height: 110px;
             background: white; border-radius: 50%;
             border: 6px solid white; object-fit: contain;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
@@ -96,32 +101,42 @@
             font-family: 'Titan One', cursive; font-size: 2.5rem;
             text-transform: uppercase;
             text-shadow: 2px 2px 0px rgba(0,0,0,0.5);
-            color: white; /* Will be overlaid */
-            margin-top: 5px;
-            background: #333; padding: 5px 15px; border-radius: 20px;
-            border: 2px solid white;
+            color: white;
+            margin-top: -15px; /* Overlap logo slightly */
+            background: #333; padding: 5px 20px; border-radius: 30px;
+            border: 3px solid white;
+            white-space: nowrap;
         }
 
-        /* CARDS ROW */
+        /* CARDS LAYOUT */
+        /* If multiple cards, they wrap inside the player zone */
         .cards-row {
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 20px;
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 25px;
+            max-width: 100%;
         }
         
         .single-card-wrap {
-            width: 300px; display: flex; flex-direction: column; gap: 8px;
+            width: var(--card-width); /* Fixed width to prevent squishing */
+            display: flex; flex-direction: column; gap: 10px;
+            flex-shrink: 0; /* Don't let flexbox shrink this */
         }
 
         .bingo-grid-container {
             background: #000;
-            border-radius: 15px;
+            border-radius: 12px;
             overflow: hidden;
             border: 2px solid #000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
         .card-label {
-            text-align: center; padding: 5px;
+            text-align: center; padding: 8px;
             font-weight: bold; color: white;
-            text-transform: uppercase;
+            font-size: 1rem;
+            text-transform: uppercase; letter-spacing: 1px;
         }
 
         .grid {
@@ -129,23 +144,30 @@
             grid-template-columns: repeat(5, 1fr);
             gap: 1px;
             background: #999;
-            aspect-ratio: 1/1;
+            aspect-ratio: 1/1; /* Keeps it square */
         }
 
         .cell {
-            background: #f1f5f9; color: #1e293b;
+            background: #f8fafc; color: #0f172a;
             display: flex; align-items: center; justify-content: center;
-            text-align: center; font-size: 10px; padding: 2px;
-            font-weight: 700; line-height: 1.1;
+            text-align: center; 
+            font-size: 9px; /* Smaller font for fit */
+            padding: 2px;
+            font-weight: 700; 
+            line-height: 1.2;
             user-select: none;
             word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
         }
         
         /* FREE SPACE */
         .cell.free {
             background: #1e293b !important; color: white !important;
-            font-size: 14px; font-weight: 900;
+            font-size: 12px; font-weight: 900;
+            display: flex; flex-direction: column; justify-content: center;
         }
+        .cell.free span { font-size: 16px; display: block; }
 
         /* STATES */
         .cell.marked {
@@ -153,31 +175,32 @@
             color: black !important;
         }
         .cell.win {
-            background: #ef4444 !important; /* Red flash */
+            background: #ef4444 !important;
             color: white !important;
             animation: pulse 1s infinite;
         }
         
         @keyframes pulse { 0%{opacity:1;} 50%{opacity:0.5;} 100%{opacity:1;} }
 
-        /* MY CONTROLS */
+        /* CONTROLS */
         .is-me .cell:not(.free) { cursor: pointer; }
-        .is-me .cell:not(.free):hover { filter: brightness(0.9); }
+        .is-me .cell:not(.free):hover { filter: brightness(0.95); }
         .is-me .cell:not(.free):active { background: #cbd5e1; }
 
         .reroll-row {
             display: flex; justify-content: space-between; align-items: center;
-            background: #eee; padding: 5px 10px; border-radius: 8px;
+            background: #f1f5f9; padding: 8px 12px; border-radius: 8px;
             color: #333; font-weight: bold; font-size: 0.9rem;
+            border: 1px solid #ccc;
         }
         .btn-reroll {
             background: #ef4444; color: white; border: none;
-            padding: 5px 10px; border-radius: 5px; cursor: pointer;
-            font-family: 'Titan One'; font-size: 0.8rem;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer;
+            font-family: 'Titan One'; font-size: 0.9rem; text-transform: uppercase;
         }
-        .btn-reroll:disabled { background: #999; cursor: default; }
+        .btn-reroll:disabled { background: #94a3b8; cursor: default; opacity: 0.7; }
 
-        /* CONTROLS FOOTER */
+        /* FOOTER CONTROLS */
         #footer-controls {
             position: fixed; bottom: 20px; right: 20px;
             background: white; padding: 10px 15px; border-radius: 30px;
@@ -186,26 +209,20 @@
             z-index: 1000;
         }
 
-        /* WINNER GLOW */
+        /* WINNER */
         .player-zone.winner {
-            box-shadow: 0 0 50px #fbbf24;
+            box-shadow: 0 0 60px #fbbf24;
             border-color: #fbbf24;
-            transform: scale(1.02);
             z-index: 50;
+            transform: scale(1.02);
         }
 
-        /* CELEBRATION */
         #celebration { position: fixed; inset: 0; pointer-events: none; z-index: 5000; overflow: hidden; }
         .football { position: absolute; font-size: 5rem; animation: spinFly 3s linear infinite; }
         @keyframes spinFly { from { transform: translate(-100px, 100vh) rotate(0deg); } to { transform: translate(120vw, -200px) rotate(720deg); } }
 
         .hidden { display: none !important; }
-
-        /* Error Banner */
-        #error-banner {
-            position: fixed; top:0; left:0; width:100%; background:red; color:white; 
-            text-align: center; padding: 10px; z-index: 10000; display: none;
-        }
+        #error-banner { position: fixed; top:0; left:0; width:100%; background:red; color:white; text-align: center; padding: 10px; z-index: 10000; display: none; }
     </style>
 </head>
 <body>
@@ -215,7 +232,7 @@
     <div id="lobby">
         <div class="lobby-card">
             <h1>NFL BEANO</h1>
-            <p style="color:#666; font-weight:bold; letter-spacing:1px;">v7.0 BULLETPROOF</p>
+            <p style="color:#666; font-weight:bold; letter-spacing:1px;">v8.0 BIG CARD EDITION</p>
 
             <div class="control-group">
                 <label>Player Name</label>
@@ -260,14 +277,13 @@
     <div id="celebration"></div>
 
 <script>
-    // --- GLOBAL ERROR HANDLER ---
-    window.onerror = function(msg, url, line) {
+    // Error Handling
+    window.onerror = function(msg) {
         document.getElementById('error-banner').style.display = 'block';
-        document.getElementById('error-banner').innerText = "ERROR: " + msg;
+        document.getElementById('error-banner').innerText = "Error: " + msg;
         return false;
     };
 
-    // --- DATA ---
     const TEAMS = {
         "None": { c: "#333333", l: "nfl.svg" },
         "ARI": { c: "#97233F", l: "arizona-cardinals.svg" },
@@ -321,14 +337,14 @@
         [0,6,12,18,24], [4,8,12,16,20]
     ];
 
-    // --- SETUP ---
+    // SETUP
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC_PRE = 'nfl_beano_v7';
+    const TOPIC_PRE = 'nfl_beano_v8';
     let client, myId = 'p' + Math.random().toString(36).substr(2,6);
     let myName, myTeam, roomCode, isHost;
     let gameState = { players: {} };
 
-    // Fill Selects
+    // UI Fill
     const ls = document.getElementById('lobby-team');
     const is = document.getElementById('ingame-team');
     for(let t in TEAMS) {
@@ -338,7 +354,7 @@
         }
     }
 
-    // --- MAIN FUNCTIONS ---
+    // LOGIC
     function initGame(host) {
         myName = document.getElementById('username').value.trim() || (host?"HOST":"GUEST");
         myTeam = ls.value;
@@ -350,31 +366,24 @@
             if(roomCode.length !== 4) return alert("Enter 4-letter Code");
         }
 
-        // Host creates self data IMMEDIATELY
         if(host) {
             const cnt = parseInt(document.getElementById('card-count').value);
             gameState.players[myId] = createPlayerData(myName, myTeam, cnt);
         }
 
-        // UI Transition
         document.getElementById('lobby').classList.add('hidden');
         document.getElementById('footer-controls').classList.remove('hidden');
         document.getElementById('room-label').innerText = "ROOM: " + roomCode;
         if(host) document.getElementById('reset-btn').style.display = 'block';
         document.getElementById('ingame-team').value = myTeam;
         
-        // Initial Render (Prevents blank screen)
         render();
-
-        // Connect Network
         connectMQTT();
     }
 
     function createPlayerData(name, team, count) {
         let p = { name: name, team: team, cards: [] };
-        for(let i=0; i<count; i++) {
-            p.cards.push(newCard());
-        }
+        for(let i=0; i<count; i++) p.cards.push(newCard());
         return p;
     }
 
@@ -394,9 +403,7 @@
     }
 
     function checkWin(c) {
-        for(let l of WINS) {
-            if(l.every(idx => c.marked.includes(idx))) return l;
-        }
+        for(let l of WINS) if(l.every(idx => c.marked.includes(idx))) return l;
         return [];
     }
 
@@ -417,20 +424,17 @@
         }
     }
 
-    // --- RENDER ENGINE (Bulletproof HTML String) ---
+    // RENDER
     function render() {
         const board = document.getElementById('game-board');
         const pIds = Object.keys(gameState.players);
 
-        // Sorting: Me first
         pIds.sort((a,b) => (a===myId ? -1 : 1));
 
-        // Background Color Logic
+        // Background Logic
         if(pIds.length <= 1) {
-            // Solo Mode: Show my team color full screen
             document.body.style.backgroundColor = (TEAMS[myTeam] ? TEAMS[myTeam].c : "#0f172a");
         } else {
-            // VS Mode: Dark background
             document.body.style.backgroundColor = "#0f172a";
         }
 
@@ -447,10 +451,8 @@
             const tm = TEAMS[p.team] || TEAMS["None"];
             const isWinner = p.cards.some(c => c.winLine.length > 0);
 
-            // Card Builder
             let cardsHtml = "";
             p.cards.forEach((c, cIdx) => {
-                // Grid Cells
                 let cellsHtml = "";
                 c.events.forEach((evt, idx) => {
                     let classes = "cell";
@@ -458,14 +460,11 @@
                     if(c.marked.includes(idx)) classes += " marked";
                     if(c.winLine.includes(idx)) classes += " win";
                     
-                    // Onclick attribute (Only valid if it's me)
-                    // We use dataset for event delegation to keep HTML clean
                     let clickAttr = isMe ? `onclick="cellClick('${pid}', ${cIdx}, ${idx})"` : "";
                     
-                    cellsHtml += `<div class="${classes}" ${clickAttr}>${idx===12 ? 'FREE<br>🏈' : evt}</div>`;
+                    cellsHtml += `<div class="${classes}" ${clickAttr}>${idx===12 ? 'FREE<br><span>🏈</span>' : evt}</div>`;
                 });
 
-                // Reroll UI (Me only)
                 let rrHtml = "";
                 if(isMe) {
                     let dis = c.rerolls <= 0 ? "disabled" : "";
@@ -488,7 +487,6 @@
                 `;
             });
 
-            // Player Wrapper
             html += `
                 <div class="player-zone ${isWinner ? 'winner' : ''}" style="border-color:${tm.c}">
                     <div class="player-header">
@@ -505,18 +503,15 @@
         board.innerHTML = html;
     }
 
-    // Global Click Handler to avoid closure complexity in HTML strings
     window.cellClick = function(pId, cIdx, cellIdx) {
         if(pId !== myId || cellIdx === 12) return;
         
         let p = gameState.players[myId];
         let c = p.cards[cIdx];
         
-        // Toggle
         if(c.marked.includes(cellIdx)) c.marked = c.marked.filter(x => x!==cellIdx);
         else c.marked.push(cellIdx);
         
-        // Win Check
         let w = checkWin(c);
         c.winLine = w;
         if(w.length > 0) celebrate();
@@ -525,7 +520,7 @@
         send({ type: 'UPDATE', pData: p });
     };
 
-    // --- NETWORK ---
+    // NETWORK
     function connectMQTT() {
         client = mqtt.connect(BROKER);
         const t = `${TOPIC_PRE}/${roomCode}`;
@@ -533,10 +528,8 @@
         client.on('connect', () => {
             client.subscribe(t);
             if(isHost) {
-                // Host State Loop
                 setInterval(() => send({ type: 'STATE', state: gameState }), 1000);
             } else {
-                // Guest Join Loop
                 const cnt = parseInt(document.getElementById('card-count').value);
                 let iv = setInterval(() => {
                     if(gameState.players[myId]) clearInterval(iv);
@@ -570,7 +563,6 @@
                         gameState = msg.state;
                         if(local) gameState.players[myId] = local;
                         
-                        // Check celebration
                         let winFound = false;
                         Object.values(gameState.players).forEach(p => {
                             if(p.cards.some(c => c.winLine.length > 0)) winFound = true;
