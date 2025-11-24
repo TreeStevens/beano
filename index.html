@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v3.0</title>
+    <title>NFL BEANO v4.0 - Reroll Edition</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;600&family=Roboto:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Fun, Chunky Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Titan+One&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --primary: #1e293b;
-            --secondary: #0f172a;
+            --bg-color: #1a1a2e;
+            --card-bg: #ffffff;
+            --primary: #333;
+            --secondary: #555;
             --accent: #fff;
             --gold: #fbbf24;
         }
@@ -19,243 +22,262 @@
 
         body {
             margin: 0; padding: 0;
-            font-family: 'Roboto', sans-serif;
-            background: radial-gradient(circle at center, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            min-height: 100vh;
-            transition: background 0.5s ease;
+            font-family: 'Fredoka', sans-serif;
+            background-color: #0f172a; /* Fallback */
+            background-image: 
+                radial-gradient(#ffffff 1px, transparent 1px),
+                radial-gradient(#ffffff 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            background-color: #265df2; /* Vibrant Blue Base */
+            color: #333;
             overflow-x: hidden;
         }
-
-        /* Texture Overlay for "Field" look */
-        body::before {
-            content: "";
-            position: fixed; inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.05' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        h1, h2, h3 { font-family: 'Teko', sans-serif; text-transform: uppercase; margin: 0; letter-spacing: 1px; }
 
         /* --- LOBBY --- */
         #lobby {
             min-height: 100vh;
             display: flex; justify-content: center; align-items: center;
-            padding: 20px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 2000;
         }
-        .lobby-card {
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255,255,255,0.2);
+        .lobby-panel {
+            background: white;
             padding: 40px;
-            border-radius: 20px;
-            width: 100%; max-width: 450px;
+            border-radius: 30px;
+            width: 90%; max-width: 500px;
             text-align: center;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 0px rgba(0,0,0,0.2);
+            border: 5px solid #fff;
         }
-        .lobby-card h1 { font-size: 4rem; line-height: 1; margin-bottom: 0; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .tagline { color: #94a3b8; font-size: 0.9rem; margin-bottom: 30px; display: block; font-weight: bold; letter-spacing: 2px; }
-
-        .input-group { margin-bottom: 20px; text-align: left; }
-        .input-group label { display: block; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .lobby-panel h1 { font-family: 'Titan One', cursive; font-size: 3rem; margin: 0; color: #265df2; text-transform: uppercase; }
+        .lobby-panel h3 { margin-top: 0; color: #888; }
         
-        input, select {
+        .input-group { margin: 20px 0; text-align: left; }
+        .input-group label { display: block; font-weight: 700; color: #555; margin-bottom: 5px; text-transform: uppercase; }
+        
+        select, input {
             width: 100%; padding: 15px;
-            background: rgba(0,0,0,0.5); 
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white; border-radius: 8px; font-size: 1.1rem;
-            outline: none; transition: 0.2s;
+            border: 3px solid #eee; border-radius: 12px;
+            font-size: 1.1rem; font-family: 'Fredoka', sans-serif; font-weight: 600;
+            outline: none;
         }
-        input:focus, select:focus { border-color: white; background: rgba(0,0,0,0.8); }
-
-        .flex-row { display: flex; gap: 10px; }
-        .flex-row > div { flex: 1; }
+        select:focus, input:focus { border-color: #265df2; }
 
         button {
-            width: 100%; padding: 16px; font-size: 1.5rem; font-family: 'Teko', sans-serif;
-            border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s;
-            margin-top: 10px; text-transform: uppercase; font-weight: 600;
+            width: 100%; padding: 15px;
+            border: none; border-radius: 15px;
+            font-family: 'Titan One', cursive; font-size: 1.5rem; letter-spacing: 1px;
+            cursor: pointer; transform: translateY(0); transition: 0.1s;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            margin-top: 10px;
         }
-        button:active { transform: scale(0.98); }
-        
-        .btn-host { background: white; color: black; }
-        .btn-host:hover { background: #e2e8f0; }
-        
-        .btn-join { 
-            background: transparent; border: 2px solid rgba(255,255,255,0.3); color: white; 
-        }
-        .btn-join:hover { border-color: white; background: rgba(255,255,255,0.1); }
+        button:active { transform: translateY(6px); box-shadow: none; }
+        .btn-host { background: #ff4757; color: white; }
+        .btn-join { background: #2ed573; color: white; }
 
-        .divider { display: flex; align-items: center; margin: 25px 0; color: #64748b; font-size: 0.9rem; font-weight: bold; }
-        .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
-        .divider span { padding: 0 10px; }
-
-        /* --- GAME HEADER --- */
-        .header {
-            position: sticky; top: 0; z-index: 100;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding: 10px 20px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .room-code-display { font-family: monospace; background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 4px; margin-left: 10px; color: #fbbf24; }
-
-        /* --- GAME BOARD --- */
-        .game-board { padding: 20px; max-width: 1600px; margin: 0 auto; padding-bottom: 80px; }
-
-        .section-header {
-            font-size: 2rem; color: rgba(255,255,255,0.9);
-            margin: 30px 0 15px 0;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
-            border-bottom: 2px solid rgba(255,255,255,0.2);
-            display: inline-block;
+        /* --- GAME LAYOUT --- */
+        #game-ui {
+            display: flex;
+            flex-wrap: wrap;
+            min-height: 100vh;
         }
 
-        /* --- PLAYER BLOCKS --- */
-        .player-container {
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 30px;
-            justify-content: center;
-            align-items: flex-start;
-        }
-
-        .player-block {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
+        /* LEFT SIDE: MY HAND */
+        .pane-my-hand {
+            flex: 1;
+            min-width: 350px;
+            background: transparent;
             padding: 20px;
-            display: flex; flex-direction: column; gap: 15px;
+            display: flex; flex-direction: column; align-items: center;
+            border-right: 5px dashed rgba(255,255,255,0.2);
+        }
+
+        /* RIGHT SIDE: THE FIELD */
+        .pane-field {
+            flex: 1;
+            min-width: 350px;
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .section-title {
+            font-family: 'Titan One', cursive;
+            font-size: 2.5rem;
+            color: white;
+            text-transform: uppercase;
+            text-shadow: 4px 4px 0px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        /* --- PLAYER CARD CONTAINER (The "Pop Art" Wrapper) --- */
+        .player-wrapper {
+            background-color: var(--primary); /* Team Color */
+            border-radius: 30px;
+            padding: 25px;
+            width: 100%;
+            max-width: 1000px;
+            border: 6px solid white;
+            box-shadow: 0 15px 0 rgba(0,0,0,0.2);
+            margin-bottom: 40px;
             position: relative;
+            overflow: hidden;
             transition: transform 0.3s;
         }
 
-        .player-info {
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            margin-bottom: 5px;
+        /* Confetti Decoration CSS */
+        .player-wrapper::before {
+            content: "";
+            position: absolute; inset: 0;
+            background-image: 
+                radial-gradient(circle, rgba(255,255,255,0.2) 10%, transparent 11%),
+                radial-gradient(circle, rgba(255,255,255,0.2) 10%, transparent 11%);
+            background-size: 30px 30px;
+            background-position: 0 0, 15px 15px;
+            opacity: 0.6; pointer-events: none;
         }
-        
-        .player-name {
-            font-family: 'Teko'; font-size: 2rem; line-height: 1;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+        /* Squiggles via CSS SVG background */
+        .player-wrapper::after {
+            content: "";
+            position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 5c5 0 5 10 10 10s5-10 10-10' stroke='white' stroke-width='3' fill='none' opacity='0.1'/%3E%3C/svg%3E");
+            opacity: 0.5; pointer-events: none;
         }
 
-        /* --- CARD LAYOUT (SIDE BY SIDE) --- */
-        .cards-row {
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 15px; 
+        .player-header {
+            position: relative; z-index: 2;
+            display: flex; flex-direction: column; align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .team-logo {
+            width: 100px; height: 100px;
+            background: white;
+            border-radius: 50%;
+            border: 4px solid white;
+            object-fit: contain;
+            padding: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+        }
+
+        .player-name {
+            color: white; font-family: 'Titan One', cursive;
+            font-size: 2rem; text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* --- CARD ROW --- */
+        .cards-container {
+            position: relative; z-index: 2;
+            display: flex; flex-wrap: wrap; gap: 20px;
             justify-content: center;
         }
 
-        .bingo-card {
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            width: 100%;
-            /* Responsive Sizing */
-            min-width: 300px;
-            max-width: 340px;
-            flex: 1 1 300px; 
-            border: 1px solid #333;
+        .card-column {
+            flex: 1 1 280px;
+            max-width: 320px;
+            display: flex; flex-direction: column; gap: 10px;
         }
 
-        .card-header {
-            padding: 8px; text-align: center; 
-            font-weight: 900; font-size: 1rem;
-            text-transform: uppercase; letter-spacing: 1px;
-            color: white;
+        /* --- THE BINGO GRID --- */
+        .bingo-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.1);
+            border: 3px solid white;
+        }
+
+        .card-title-bar {
+            background: var(--gold); /* Default, overridden by team */
+            color: #333;
+            text-align: center; font-weight: 900;
+            padding: 8px; font-size: 0.9rem;
+            text-transform: uppercase;
         }
 
         .grid {
-            display: grid; 
-            grid-template-columns: repeat(5, 1fr);
-            gap: 1px; 
-            background: #222; 
-            border-top: 1px solid #222;
+            display: grid; grid-template-columns: repeat(5, 1fr);
+            gap: 2px; background: #ddd; border: 2px solid #ddd;
             aspect-ratio: 1/1;
         }
 
         .cell {
-            background: #f1f5f9;
+            background: white;
             display: flex; align-items: center; justify-content: center;
-            text-align: center; 
-            font-size: 11px; 
-            padding: 4px;
-            color: #0f172a; 
-            user-select: none; 
-            cursor: default;
-            line-height: 1.1; 
-            font-weight: 700;
-            word-break: normal; overflow-wrap: break-word;
+            text-align: center; font-size: 10px; padding: 3px;
+            font-weight: 700; color: #333;
+            line-height: 1.1; word-break: normal;
+            user-select: none;
         }
 
-        /* My Cards Interactive */
-        .is-me .cell { cursor: pointer; transition: background 0.1s; }
-        .is-me .cell:hover { background: #e2e8f0; }
+        .is-me .cell { cursor: pointer; transition: 0.1s; }
+        .is-me .cell:active { background: #eee; }
 
-        /* States */
-        .cell.marked { 
-            background-color: #15803d !important; 
-            color: white !important; 
+        .cell.free {
+            font-size: 12px; font-weight: 900;
+        }
+
+        .cell.marked {
+            background: var(--secondary) !important;
+            color: white !important;
             position: relative;
         }
-        .cell.marked::after {
-            content: "✕"; position: absolute; 
-            opacity: 0.3; font-size: 20px;
+
+        /* --- REROLL BUTTON --- */
+        .reroll-btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px dashed rgba(255,255,255,0.5);
+            color: white;
+            padding: 8px;
+            border-radius: 10px;
+            font-weight: 700; font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .reroll-btn:hover:not(:disabled) {
+            background: white; color: var(--primary);
+        }
+        .reroll-btn:disabled {
+            opacity: 0.5; cursor: not-allowed; border-style: solid;
+        }
+        .reroll-count {
+            background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;
         }
 
-        .cell.free { 
-            background: #334155 !important; 
-            color: white !important; 
-            font-weight: 900; font-size: 10px;
-            border: none;
+        /* --- WINNER ANIMATION --- */
+        .player-wrapper.winner {
+            animation: bounce 1s infinite;
+            border-color: var(--gold);
+            box-shadow: 0 0 40px var(--gold);
+        }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        .cell.winning-line {
+            background: var(--gold) !important; color: black !important;
         }
 
-        /* WINNER STYLES */
-        .player-block.winner {
-            border: 3px solid var(--gold);
-            box-shadow: 0 0 50px rgba(251, 191, 36, 0.4);
-            animation: pop 0.5s ease;
-        }
-        @keyframes pop { 0% { transform: scale(0.95); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .hidden { display: none !important; }
 
-        .cell.winning-line { 
-            background: var(--gold) !important; 
-            color: black !important; 
-            z-index: 2;
+        /* HEADER BAR */
+        .header-controls {
+            position: fixed; bottom: 10px; right: 10px; z-index: 500;
+            background: white; padding: 10px; border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: flex; gap: 10px; align-items: center;
         }
 
-        /* BOTTOM CONTROLS */
-        .controls-bar {
-            position: fixed; bottom: 0; width: 100%;
-            background: rgba(0,0,0,0.9); padding: 15px;
-            display: flex; justify-content: center; gap: 20px;
-            border-top: 1px solid rgba(255,255,255,0.2);
-            z-index: 200;
-        }
-        .btn-control {
-            width: auto; margin: 0; padding: 8px 20px; font-size: 1.1rem;
-            background: #334155; color: white;
-        }
-
-        /* FOOTBALLS */
+        /* Footballs */
         #celebration { position: fixed; inset: 0; pointer-events: none; z-index: 3000; overflow: hidden; }
         .football { position: absolute; font-size: 4rem; animation: spinFly 3s linear infinite; }
         @keyframes spinFly { 
             from { transform: translate(-100px, 100vh) rotate(0deg); } 
             to { transform: translate(120vw, -200px) rotate(720deg); } 
-        }
-
-        .hidden { display: none !important; }
-
-        /* Mobile Tweak */
-        @media (max-width: 600px) {
-            .bingo-card { min-width: 100%; max-width: 100%; }
-            .lobby-card h1 { font-size: 3rem; }
         }
     </style>
 </head>
@@ -263,80 +285,69 @@
 
     <!-- LOBBY -->
     <div id="lobby">
-        <div class="lobby-card">
-            <h1>NFL BEANO</h1>
-            <span class="tagline">v3.0 | Game Day Edition</span>
+        <div class="lobby-panel">
+            <h1>NFL Beano</h1>
+            <h3>Game Day Edition</h3>
 
-            <!-- User Info -->
             <div class="input-group">
                 <label>Player Name</label>
-                <input type="text" id="username" placeholder="e.g. Switch" maxlength="12">
+                <input type="text" id="username" placeholder="NAME" maxlength="12">
             </div>
 
-            <div class="flex-row">
-                <div class="input-group">
-                    <label>Your Team</label>
-                    <select id="lobby-team-select" onchange="updateLobbyTheme()">
-                        <option value="None">Neutral</option>
-                        <!-- Teams JS -->
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>Card Count</label>
+            <div class="input-group">
+                <label>Pick Your Team</label>
+                <select id="lobby-team-select">
+                    <option value="None">Select Team...</option>
+                    <!-- Teams JS -->
+                </select>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <div class="input-group" style="flex:1">
+                    <label>Cards</label>
                     <select id="lobby-count">
-                        <option value="1">1 Card</option>
-                        <option value="2">2 Cards</option>
-                        <option value="3">3 Cards</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
                     </select>
+                </div>
+                <div class="input-group" style="flex:2">
+                    <label>Room Code</label>
+                    <input type="text" id="room-code-input" placeholder="NEW or CODE" style="text-transform: uppercase;">
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <button class="btn-host" onclick="createGame()">CREATE NEW ROOM</button>
-            
-            <div class="divider"><span>OR JOIN</span></div>
-
-            <div class="flex-row">
-                <div class="input-group" style="flex:2;">
-                    <input type="text" id="room-code-input" placeholder="CODE" maxlength="4" style="text-transform:uppercase; text-align:center; letter-spacing:3px; font-family:monospace; font-weight:bold;">
-                </div>
-                <div style="flex:1;">
-                    <button class="btn-join" style="margin:0; height:100%;" onclick="joinGame()">GO</button>
-                </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-host" onclick="startGame(true)">HOST</button>
+                <button class="btn-join" onclick="startGame(false)">JOIN</button>
             </div>
         </div>
     </div>
 
-    <!-- GAME -->
+    <!-- MAIN GAME UI -->
     <div id="game-ui" class="hidden">
-        <div class="header">
-            <div style="display:flex; align-items:center;">
-                <h2>BEANO</h2>
-                <span class="room-code-display" id="room-display">----</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:0.8rem; color:#aaa;">STYLE:</span>
-                <select id="game-team-select" onchange="changeMyTheme()" style="padding:5px; width:auto; font-size:0.9rem;">
-                    <!-- Teams JS -->
-                </select>
+        
+        <!-- MY SIDE -->
+        <div class="pane-my-hand">
+            <div class="section-title">My Hand</div>
+            <div id="my-area" style="width:100%; display:flex; justify-content:center;"></div>
+        </div>
+
+        <!-- FIELD SIDE -->
+        <div class="pane-field">
+            <div class="section-title">The Field</div>
+            <div id="field-area" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:20px;">
+                <div style="color:rgba(255,255,255,0.5);">Waiting for players...</div>
             </div>
         </div>
 
-        <div class="game-board">
-            <!-- My Section -->
-            <div class="section-header">MY HAND</div>
-            <div id="my-area" class="player-container"></div>
-
-            <!-- Others Section -->
-            <div class="section-header" style="margin-top: 50px;">THE FIELD</div>
-            <div id="field-area" class="player-container">
-                <div style="color:rgba(255,255,255,0.5); width:100%; text-align:center;">Waiting for players...</div>
-            </div>
-        </div>
-
-        <!-- Host Footer -->
-        <div id="host-controls" class="controls-bar hidden">
-            <button class="btn-control" style="background:#ef4444;" onclick="resetGame()">⚠ NEW CARDS FOR ALL</button>
+        <!-- CONTROLS -->
+        <div class="header-controls">
+            <div>Room: <b id="room-display">----</b></div>
+            <select id="ingame-team-select" onchange="changeMyTeam()" style="padding:5px; font-size:0.8rem; width:auto;">
+                <!-- Teams JS -->
+            </select>
+            <button id="host-reset-btn" onclick="resetGame()" style="background:#ff4757; color:white; font-size:0.8rem; padding:5px 10px; width:auto; display:none;">RESET</button>
         </div>
     </div>
 
@@ -344,26 +355,42 @@
 
 <script>
     // =================================================================
-    // 1. CONFIG & DATA
+    // 1. CONFIG
     // =================================================================
     const TEAMS = {
-        "None": { p: "#1e293b", s: "#0f172a" }, 
-        "ARI": { p: "#97233F", s: "#000000" }, "ATL": { p: "#A71930", s: "#000000" },
-        "BAL": { p: "#241773", s: "#000000" }, "BUF": { p: "#00338D", s: "#C60C30" },
-        "CAR": { p: "#0085CA", s: "#000000" }, "CHI": { p: "#0B162A", s: "#C83803" },
-        "CIN": { p: "#FB4F14", s: "#000000" }, "CLE": { p: "#311D00", s: "#FF3C00" },
-        "DAL": { p: "#003594", s: "#869397" }, "DEN": { p: "#FB4F14", s: "#002244" },
-        "DET": { p: "#0076B6", s: "#B0B7BC" }, "GB":  { p: "#203731", s: "#FFB612" },
-        "HOU": { p: "#03202F", s: "#A71930" }, "IND": { p: "#002C5F", s: "#A2AAAD" },
-        "JAX": { p: "#006778", s: "#9F792C" }, "KC":  { p: "#E31837", s: "#FFB81C" },
-        "LV":  { p: "#000000", s: "#A5ACAF" }, "LAC": { p: "#0080C6", s: "#FFC20E" },
-        "LAR": { p: "#003594", s: "#FFD100" }, "MIA": { p: "#008E97", s: "#FC4C02" },
-        "MIN": { p: "#4F2683", s: "#FFC62F" }, "NE":  { p: "#002244", s: "#C60C30" },
-        "NO":  { p: "#D3BC8D", s: "#101820" }, "NYG": { p: "#0B2265", s: "#A71930" },
-        "NYJ": { p: "#125740", s: "#FFFFFF" }, "PHI": { p: "#004C54", s: "#A5ACAF" },
-        "PIT": { p: "#FFB612", s: "#101820" }, "SF":  { p: "#AA0000", s: "#B3995D" },
-        "SEA": { p: "#002244", s: "#69BE28" }, "TB":  { p: "#D50A0A", s: "#34302B" },
-        "TEN": { p: "#0C2340", s: "#4B92DB" }, "WAS": { p: "#5A1414", s: "#FFB612" }
+        "None": { p: "#333333", s: "#000000", logo: "nfl.svg" },
+        "ARI": { p: "#97233F", s: "#000000", logo: "ari.svg" },
+        "ATL": { p: "#A71930", s: "#000000", logo: "atl.svg" },
+        "BAL": { p: "#241773", s: "#9E7C0C", logo: "bal.svg" },
+        "BUF": { p: "#00338D", s: "#C60C30", logo: "buf.svg" },
+        "CAR": { p: "#0085CA", s: "#000000", logo: "car.svg" },
+        "CHI": { p: "#0B162A", s: "#C83803", logo: "chi.svg" },
+        "CIN": { p: "#FB4F14", s: "#000000", logo: "cin.svg" },
+        "CLE": { p: "#311D00", s: "#FF3C00", logo: "cle.svg" },
+        "DAL": { p: "#003594", s: "#869397", logo: "dal.svg" },
+        "DEN": { p: "#FB4F14", s: "#002244", logo: "den.svg" },
+        "DET": { p: "#0076B6", s: "#B0B7BC", logo: "det.svg" },
+        "GB":  { p: "#203731", s: "#FFB612", logo: "gb.svg" },
+        "HOU": { p: "#03202F", s: "#A71930", logo: "hou.svg" },
+        "IND": { p: "#002C5F", s: "#A2AAAD", logo: "ind.svg" },
+        "JAX": { p: "#006778", s: "#9F792C", logo: "jax.svg" },
+        "KC":  { p: "#E31837", s: "#FFB81C", logo: "kc.svg" },
+        "LV":  { p: "#000000", s: "#A5ACAF", logo: "lv.svg" },
+        "LAC": { p: "#0080C6", s: "#FFC20E", logo: "lac.svg" },
+        "LAR": { p: "#003594", s: "#FFD100", logo: "lar.svg" },
+        "MIA": { p: "#008E97", s: "#FC4C02", logo: "mia.svg" },
+        "MIN": { p: "#4F2683", s: "#FFC62F", logo: "min.svg" },
+        "NE":  { p: "#002244", s: "#C60C30", logo: "ne.svg" },
+        "NO":  { p: "#D3BC8D", s: "#101820", logo: "no.svg" },
+        "NYG": { p: "#0B2265", s: "#A71930", logo: "nyg.svg" },
+        "NYJ": { p: "#125740", s: "#FFFFFF", logo: "nyj.svg" },
+        "PHI": { p: "#004C54", s: "#A5ACAF", logo: "phi.svg" },
+        "PIT": { p: "#FFB612", s: "#101820", logo: "pit.svg" },
+        "SF":  { p: "#AA0000", s: "#B3995D", logo: "sf.svg" },
+        "SEA": { p: "#002244", s: "#69BE28", logo: "sea.svg" },
+        "TB":  { p: "#D50A0A", s: "#34302B", logo: "tb.svg" },
+        "TEN": { p: "#0C2340", s: "#4B92DB", logo: "ten.svg" },
+        "WAS": { p: "#5A1414", s: "#FFB612", logo: "was.svg" }
     };
 
     const EVENTS = [
@@ -384,291 +411,297 @@
         [0,6,12,18,24], [4,8,12,16,20]
     ];
 
-    // =================================================================
-    // 2. STATE & INIT
-    // =================================================================
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC_BASE = 'nfl_beano_v3';
-    
-    let client, myId = 'u'+Math.random().toString(36).substr(2,5);
-    let myName="", myTeam="None", roomCode="", isHost=false;
-    
-    let gameState = { players: {} }; // id -> { name, team, cards: [] }
+    const TOPIC = 'nfl_beano_v4';
+    let client, myId='u'+Math.random().toString(36).substr(2,5), myName="", myTeam="None", roomCode="", isHost=false;
+    let gameState = { players: {} };
 
-    // Populate Selects
-    const lSel = document.getElementById('lobby-team-select');
-    const gSel = document.getElementById('game-team-select');
-    Object.keys(TEAMS).forEach(t => {
+    // Init
+    const ls = document.getElementById('lobby-team-select');
+    const gs = document.getElementById('ingame-team-select');
+    for(let t in TEAMS) {
         if(t!=="None") {
-            lSel.innerHTML += `<option value="${t}">${t}</option>`;
-            gSel.innerHTML += `<option value="${t}">${t}</option>`;
+            ls.innerHTML += `<option value="${t}">${t}</option>`;
+            gs.innerHTML += `<option value="${t}">${t}</option>`;
         }
-    });
-
-    // =================================================================
-    // 3. LOBBY LOGIC
-    // =================================================================
-    function updateLobbyTheme() {
-        const t = document.getElementById('lobby-team-select').value;
-        applyTheme(t);
     }
 
-    function applyTheme(teamCode) {
-        const colors = TEAMS[teamCode] || TEAMS["None"];
-        document.body.style.setProperty('--primary', colors.p);
-        document.body.style.setProperty('--secondary', colors.s);
-    }
-
-    function createGame() {
-        setupPlayer();
-        roomCode = Math.random().toString(36).substr(2,4).toUpperCase();
-        isHost = true;
-        
-        // Host creates self immediately
+    // =================================================================
+    // 2. LOGIC
+    // =================================================================
+    function startGame(host) {
+        myName = document.getElementById('username').value.trim() || (host?"Host":"Guest");
+        myTeam = ls.value;
         const count = parseInt(document.getElementById('lobby-count').value);
-        gameState.players[myId] = generatePlayer(myName, myTeam, count);
         
-        enterGame();
-        connectMQTT();
-    }
-
-    function joinGame() {
-        setupPlayer();
+        isHost = host;
         roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
-        if(roomCode.length !== 4) return alert("Invalid Room Code");
-        isHost = false;
+        if(host) roomCode = Math.random().toString(36).substr(2,4).toUpperCase();
         
-        enterGame();
-        connectMQTT();
+        if(!roomCode) return alert("Need Code");
+
+        if(host) {
+            gameState.players[myId] = generatePlayer(myName, myTeam, count);
+        }
+        
+        enterUI();
+        connect();
     }
 
-    function setupPlayer() {
-        myName = document.getElementById('username').value.trim() || (isHost?"Host":"Guest");
-        myTeam = document.getElementById('lobby-team-select').value;
-        document.getElementById('game-team-select').value = myTeam;
-        applyTheme(myTeam);
-    }
-
-    function enterGame() {
+    function enterUI() {
         document.getElementById('lobby').classList.add('hidden');
         document.getElementById('game-ui').classList.remove('hidden');
-        document.getElementById('room-display').textContent = roomCode;
-        if(isHost) document.getElementById('host-controls').classList.remove('hidden');
-        renderBoard();
+        document.getElementById('room-display').innerText = roomCode;
+        document.getElementById('ingame-team-select').value = myTeam;
+        if(isHost) document.getElementById('host-reset-btn').style.display = 'block';
+        render();
     }
 
-    function changeMyTheme() {
-        myTeam = document.getElementById('game-team-select').value;
-        applyTheme(myTeam);
+    function generatePlayer(name, team, count) {
+        let p = { name, team, cards: [] };
+        for(let i=0; i<count; i++) {
+            p.cards.push(createCardData());
+        }
+        return p;
+    }
+
+    function createCardData() {
+        let deck = [...EVENTS].sort(()=>Math.random()-0.5).slice(0,24);
+        deck.splice(12,0,"FREE");
+        return { events: deck, marked: [12], winLine: [], rerolls: 2 };
+    }
+
+    function rerollCard(pId, cardIndex) {
+        if(pId !== myId) return;
+        let p = gameState.players[myId];
+        let c = p.cards[cardIndex];
+        if(c.rerolls > 0) {
+            if(confirm("Reroll this card? You will lose current marks.")) {
+                c.rerolls--;
+                // Regenerate events
+                let newData = createCardData();
+                c.events = newData.events;
+                c.marked = [12];
+                c.winLine = [];
+                
+                // Update State
+                render();
+                send({ type: 'UPDATE', pData: p });
+            }
+        }
+    }
+
+    function changeMyTeam() {
+        myTeam = document.getElementById('ingame-team-select').value;
         if(gameState.players[myId]) {
             gameState.players[myId].team = myTeam;
-            renderBoard();
+            render();
             send({ type: 'UPDATE_TEAM', team: myTeam });
         }
     }
 
     // =================================================================
-    // 4. GAME LOGIC
+    // 3. RENDER
     // =================================================================
-    function generatePlayer(name, team, count) {
-        let p = { name, team, cards: [] };
-        for(let i=0; i<count; i++) {
-            let deck = [...EVENTS].sort(()=>Math.random()-0.5).slice(0,24);
-            deck.splice(12,0,"FREE");
-            p.cards.push({ events: deck, marked: [12], winLine: [] });
-        }
-        return p;
-    }
-
-    function checkWin(marks) {
-        for(let line of WINS) {
-            if(line.every(i => marks.includes(i))) return line;
-        }
-        return null;
-    }
-
-    // =================================================================
-    // 5. RENDERING
-    // =================================================================
-    function renderBoard() {
-        const myDiv = document.getElementById('my-area');
-        const fieldDiv = document.getElementById('field-area');
-        
-        myDiv.innerHTML = '';
+    function render() {
+        const myArea = document.getElementById('my-area');
+        const fieldArea = document.getElementById('field-area');
+        myArea.innerHTML = '';
         
         const others = Object.keys(gameState.players).filter(id => id !== myId);
-        
-        if(others.length > 0) fieldDiv.innerHTML = '';
-        else fieldDiv.innerHTML = '<div style="color:rgba(255,255,255,0.5); width:100%; text-align:center;">Waiting for players...</div>';
+        if(others.length > 0) fieldArea.innerHTML = '';
 
-        if(gameState.players[myId]) renderPlayer(gameState.players[myId], true, myDiv);
-        
-        others.forEach(pid => {
-            renderPlayer(gameState.players[pid], false, fieldDiv);
-        });
+        if(gameState.players[myId]) renderPlayer(gameState.players[myId], true, myArea);
+        others.forEach(pid => renderPlayer(gameState.players[pid], false, fieldArea));
     }
 
     function renderPlayer(p, isMe, container) {
-        const block = document.createElement('div');
-        block.className = 'player-block';
         const colors = TEAMS[p.team] || TEAMS["None"];
-        
-        const winner = p.cards.some(c => c.winLine.length > 0);
-        if(winner) block.classList.add('winner');
+        const wrap = document.createElement('div');
+        wrap.className = 'player-wrapper';
+        wrap.style.setProperty('--primary', colors.p);
+        wrap.style.setProperty('--secondary', colors.s);
+
+        if(p.cards.some(c => c.winLine.length>0)) wrap.classList.add('winner');
 
         // Header
-        const info = document.createElement('div');
-        info.className = 'player-info';
-        info.innerHTML = `<div class="player-name" style="color:${colors.acc || '#fff'}">${p.name} ${winner?'🏆':''}</div>`;
-        block.appendChild(info);
+        const header = document.createElement('div');
+        header.className = 'player-header';
+        
+        // LOGO LOGIC
+        const logoImg = document.createElement('img');
+        logoImg.className = 'team-logo';
+        // 1. Try Local File (This works if they have the folder)
+        // 2. Fallback to remote if error
+        const localPath = `logos/${p.team}.svg`; // Adjust extension if needed
+        logoImg.src = localPath;
+        logoImg.onerror = function() {
+            // Fallback for demo purposes
+            // Using a generic placeholder service or simple CDN approach
+            // For strict local use, user ensures files exist.
+            this.style.display = "none"; // Hide if broken and no fallback desired
+            // OR use text fallback
+        };
+        if (p.team !== "None") header.appendChild(logoImg);
 
-        // Cards Container (Row)
-        const row = document.createElement('div');
-        row.className = 'cards-row';
+        const name = document.createElement('div');
+        name.className = 'player-name';
+        name.innerText = p.name;
+        header.appendChild(name);
+        wrap.appendChild(header);
 
-        p.cards.forEach((card, cIdx) => {
-            const cardDiv = document.createElement('div');
-            cardDiv.className = 'bingo-card';
-            
-            // Card Header
-            const chead = document.createElement('div');
-            chead.className = 'card-header';
-            chead.innerText = `Card ${cIdx+1}`;
-            chead.style.background = winner ? 'var(--gold)' : colors.p;
-            chead.style.color = winner ? 'black' : 'white';
-            cardDiv.appendChild(chead);
+        // Cards Container
+        const cardsCont = document.createElement('div');
+        cardsCont.className = 'cards-container';
 
-            // Grid
+        p.cards.forEach((c, cIdx) => {
+            const col = document.createElement('div');
+            col.className = 'card-column';
+
+            const card = document.createElement('div');
+            card.className = 'bingo-card';
+
+            const title = document.createElement('div');
+            title.className = 'card-title-bar';
+            title.style.background = (c.winLine.length>0) ? '#fbbf24' : colors.s;
+            title.style.color = (c.winLine.length>0) ? '#000' : '#fff';
+            title.innerText = `Card ${cIdx+1}`;
+            card.appendChild(title);
+
             const grid = document.createElement('div');
             grid.className = 'grid';
 
-            card.events.forEach((txt, idx) => {
+            c.events.forEach((evt, idx) => {
                 const cell = document.createElement('div');
                 cell.className = 'cell';
-                cell.innerText = txt;
+                cell.innerText = evt;
 
-                if(idx === 12) {
+                if(idx===12) {
                     cell.classList.add('free');
-                    cell.style.background = colors.p; // Free space matches team
+                    cell.style.color = colors.p;
+                    cell.innerText = "FREE";
                 }
-                if(card.marked.includes(idx)) cell.classList.add('marked');
-                if(card.winLine.includes(idx)) cell.classList.add('winning-line');
+                if(c.marked.includes(idx)) cell.classList.add('marked');
+                if(c.winLine.includes(idx)) cell.classList.add('winning-line');
 
                 if(isMe) {
                     cell.onclick = () => {
                         if(idx===12) return;
-                        if(card.marked.includes(idx)) card.marked = card.marked.filter(x=>x!==idx);
-                        else card.marked.push(idx);
+                        if(c.marked.includes(idx)) c.marked = c.marked.filter(x=>x!==idx);
+                        else c.marked.push(idx);
                         
-                        const w = checkWin(card.marked);
-                        if(w) {
-                            card.winLine = w;
-                            celebrate();
-                        } else card.winLine = [];
+                        const w = checkWin(c.marked);
+                        c.winLine = w || [];
+                        if(w) celebrate();
 
-                        renderBoard();
-                        send({ type: 'UPDATE', pData: p });
+                        render();
+                        send({ type:'UPDATE', pData: p });
                     }
                 }
                 grid.appendChild(cell);
             });
-            cardDiv.appendChild(grid);
-            row.appendChild(cardDiv);
+            card.appendChild(grid);
+            col.appendChild(card);
+
+            // REROLL BUTTON (Only My Side)
+            if(isMe) {
+                const btn = document.createElement('button');
+                btn.className = 'reroll-btn';
+                btn.innerHTML = `<span>REROLL</span> <span class="reroll-count">${c.rerolls} left</span>`;
+                if(c.rerolls <= 0) {
+                    btn.disabled = true;
+                    btn.innerHTML = `<span>LOCKED</span> <span class="reroll-count">0</span>`;
+                }
+                btn.onclick = () => rerollCard(myId, cIdx);
+                col.appendChild(btn);
+            }
+
+            cardsCont.appendChild(col);
         });
 
-        block.appendChild(row);
-        container.appendChild(block);
+        wrap.appendChild(cardsCont);
+        container.appendChild(wrap);
+    }
+
+    function checkWin(m) {
+        for(let l of WINS) if(l.every(i=>m.includes(i))) return l;
+        return null;
     }
 
     // =================================================================
-    // 6. NETWORK
+    // 4. NETWORK
     // =================================================================
-    function connectMQTT() {
+    function connect() {
         client = mqtt.connect(BROKER);
-        const topic = `${TOPIC_BASE}/${roomCode}`;
-
-        client.on('connect', () => {
-            client.subscribe(topic);
-            
-            if(isHost) {
-                setInterval(() => send({ type: 'STATE', state: gameState }), 1000);
-            } else {
-                // Guest Join Protocol
-                const count = parseInt(document.getElementById('lobby-count').value);
-                let iv = setInterval(() => {
+        const t = `${TOPIC}/${roomCode}`;
+        client.on('connect', ()=>{
+            client.subscribe(t);
+            if(isHost) setInterval(()=>send({type:'STATE', state:gameState}), 1000);
+            else {
+                // Join with card count pref
+                const cnt = parseInt(document.getElementById('lobby-count').value);
+                let iv = setInterval(()=>{
                     if(gameState.players[myId]) clearInterval(iv);
-                    else send({ type: 'JOIN', name: myName, team: myTeam, count: count });
+                    else send({type:'JOIN', name:myName, team:myTeam, count:cnt});
                 }, 2000);
             }
         });
 
-        client.on('message', (t, m) => {
-            const msg = JSON.parse(m.toString());
-            if(msg.sender === myId) return;
+        client.on('message', (topic, msg)=>{
+            const m = JSON.parse(msg.toString());
+            if(m.sender === myId) return;
 
             if(isHost) {
-                if(msg.type === 'JOIN' && !gameState.players[msg.sender]) {
-                    gameState.players[msg.sender] = generatePlayer(msg.name, msg.team, msg.count || 1);
-                    renderBoard();
+                if(m.type==='JOIN' && !gameState.players[m.sender]) {
+                    gameState.players[m.sender] = generatePlayer(m.name, m.team, m.count);
+                    render();
                 }
-                if(msg.type === 'UPDATE') {
-                    gameState.players[msg.sender] = msg.pData;
-                    if(msg.pData.cards.some(c => c.winLine.length>0)) celebrate();
-                    renderBoard();
+                if(m.type==='UPDATE') {
+                    gameState.players[m.sender] = m.pData;
+                    if(m.pData.cards.some(c=>c.winLine.length>0)) celebrate();
+                    render();
                 }
-                if(msg.type === 'UPDATE_TEAM') {
-                    if(gameState.players[msg.sender]) {
-                        gameState.players[msg.sender].team = msg.team;
-                        renderBoard();
+                if(m.type==='UPDATE_TEAM') {
+                    if(gameState.players[m.sender]) {
+                        gameState.players[m.sender].team = m.team;
+                        render();
                     }
                 }
             } else {
-                if(msg.type === 'STATE') {
-                    const myLocal = gameState.players[myId];
-                    gameState = msg.state;
-                    if(myLocal) gameState.players[myId] = myLocal; // Preserve local state
+                if(m.type==='STATE') {
+                    let local = gameState.players[myId];
+                    gameState = m.state;
+                    if(local) gameState.players[myId] = local; 
                     
-                    // Check celebration
-                    if(Object.values(gameState.players).some(p => p.cards.some(c => c.winLine.length>0)) && !window.hasCeleb) {
-                        celebrate();
-                        window.hasCeleb = true;
+                    if(Object.values(gameState.players).some(p=>p.cards.some(c=>c.winLine.length>0)) && !window.hasCel) {
+                        celebrate(); window.hasCel=true;
                     }
-                    renderBoard();
+                    render();
                 }
             }
         });
     }
 
-    function send(payload) {
-        payload.sender = myId;
-        client.publish(`${TOPIC_BASE}/${roomCode}`, JSON.stringify(payload));
-    }
+    function send(p) { p.sender=myId; client.publish(`${TOPIC}/${roomCode}`, JSON.stringify(p)); }
 
-    // =================================================================
-    // 7. EXTRAS
-    // =================================================================
     function resetGame() {
-        if(confirm("Generate new cards for everyone?")) {
-            Object.keys(gameState.players).forEach(pid => {
-                const p = gameState.players[pid];
-                gameState.players[pid] = generatePlayer(p.name, p.team, p.cards.length);
+        if(confirm("Reset all cards?")) {
+            Object.keys(gameState.players).forEach(id=>{
+                let p = gameState.players[id];
+                gameState.players[id] = generatePlayer(p.name, p.team, p.cards.length);
             });
-            window.hasCeleb = false;
-            renderBoard();
+            window.hasCel=false;
+            render();
         }
     }
 
     function celebrate() {
-        const box = document.getElementById('celebration');
-        for(let i=0; i<15; i++) {
-            let f = document.createElement('div');
-            f.className = 'football';
-            f.innerHTML = '🏈';
-            f.style.left = "-100px";
-            f.style.top = Math.random() * 80 + 'vh';
-            f.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
-            box.appendChild(f);
-            setTimeout(()=>f.remove(), 4000);
+        const b = document.getElementById('celebration');
+        for(let i=0; i<20; i++){
+            let f = document.createElement('div'); f.className='football'; f.innerHTML='🏈';
+            f.style.left='-100px'; f.style.top=Math.random()*80+'vh';
+            f.style.animationDuration=(Math.random()*2+2)+'s';
+            b.appendChild(f); setTimeout(()=>f.remove(), 4000);
         }
     }
 </script>
