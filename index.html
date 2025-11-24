@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <!-- 
-    NFL BEANO v8.4
-    - Fixed Dropdown Bug (Loading Order)
-    - Restored Full Team Names
-    - Trivia Minigame Included
-    - Weighted Card Generation
+    NFL BEANO v8.5
+    - Fixed Blurry Footer Text (Font Change)
+    - Alphabetical Team Sorting
+    - Host Controlled Trivia Timer (Test Mode added)
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v8.4</title>
+    <title>NFL BEANO v8.5</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Titan+One&display=swap" rel="stylesheet">
 
@@ -168,8 +167,23 @@
             z-index: 1000;
         }
         .footer-left { display: flex; align-items: center; gap: 10px; }
-        #room-label { color: #333; font-weight: 900; font-size: 1.2rem; }
-        .btn-footer { padding: 8px 16px; font-size: 0.9rem; border-radius: 20px; width: auto; margin: 0; background: #64748b; color: white; border: none; font-weight: bold; cursor:pointer;}
+        #room-label { color: #333; font-weight: 900; font-size: 1.2rem; font-family: 'Chakra Petch', sans-serif; }
+        
+        /* FOOTER BUTTON FIX - Using clean font to prevent blur */
+        .btn-footer { 
+            padding: 8px 16px; 
+            font-size: 1rem; 
+            border-radius: 20px; 
+            width: auto; 
+            margin: 0; 
+            background: #64748b; 
+            color: white; 
+            border: none; 
+            font-weight: 800; /* Bold */
+            font-family: 'Chakra Petch', sans-serif; /* Cleaner font */
+            text-shadow: none; /* Removes blur cause */
+            cursor: pointer;
+        }
         
         /* MODALS */
         .modal-overlay {
@@ -255,7 +269,7 @@
     <div id="lobby">
         <div class="lobby-card">
             <h1>NFL BEANO</h1>
-            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.4 &bull; TRIVIA EDITION</p>
+            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.5 &bull; TRIVIA EDITION</p>
 
             <div class="control-group">
                 <label>Your Name</label>
@@ -276,10 +290,20 @@
                         <option value="3">3</option>
                     </select>
                 </div>
+                
                 <div class="control-group" style="flex:2">
-                    <label>Room Code</label>
-                    <input type="text" id="room-input" placeholder="CODE" style="text-transform:uppercase;">
+                    <label>Trivia Freq</label>
+                    <select id="trivia-timer-input">
+                        <option value="test">Test Mode (10-30s)</option>
+                        <option value="normal" selected>Normal (3-6m)</option>
+                        <option value="slow">Slow (10-15m)</option>
+                    </select>
                 </div>
+            </div>
+
+            <div class="control-group">
+                 <label>Room Code</label>
+                 <input type="text" id="room-input" placeholder="HOST GENERATES CODE" style="text-transform:uppercase;">
             </div>
 
             <div class="btn-row">
@@ -327,39 +351,39 @@
     };
 
     const TEAMS = {
-        "None": { n: "Select Team...", c: "#333333", l: "nfl.svg" },
-        "ARI": { n: "Cardinals", c: "#97233F", l: "arizona-cardinals.svg" },
-        "ATL": { n: "Falcons", c: "#A71930", l: "atlanta-falcons.svg" },
-        "BAL": { n: "Ravens", c: "#241773", l: "baltimore-ravens.svg" },
-        "BUF": { n: "Bills", c: "#00338D", l: "buffalo-bills.svg" },
-        "CAR": { n: "Panthers", c: "#0085CA", l: "carolina-panthers.svg" },
-        "CHI": { n: "Bears", c: "#0B162A", l: "chicago-bears.svg" },
-        "CIN": { n: "Bengals", c: "#FB4F14", l: "cincinnati-bengals.svg" },
-        "CLE": { n: "Browns", c: "#311D00", l: "cleveland-browns.svg" },
-        "DAL": { n: "Cowboys", c: "#003594", l: "dallas-cowboys.svg" },
-        "DEN": { n: "Broncos", c: "#FB4F14", l: "denver-broncos.svg" },
-        "DET": { n: "Lions", c: "#0076B6", l: "detroit-lions.svg" },
-        "GB":  { n: "Packers", c: "#203731", l: "green-bay-packers.svg" },
-        "HOU": { n: "Texans", c: "#03202F", l: "houston-texans.svg" },
-        "IND": { n: "Colts", c: "#002C5F", l: "indianapolis-colts.svg" },
-        "JAX": { n: "Jaguars", c: "#006778", l: "jacksonville-jaguars.svg" },
-        "KC":  { n: "Chiefs", c: "#E31837", l: "kansas-city-chiefs.svg" },
-        "LV":  { n: "Raiders", c: "#000000", l: "oakland-raiders.svg" },
-        "LAC": { n: "Chargers", c: "#0080C6", l: "los-angeles-chargers.svg" },
-        "LAR": { n: "Rams", c: "#003594", l: "los-angeles-rams.svg" },
-        "MIA": { n: "Dolphins", c: "#008E97", l: "miami-dolphins.svg" },
-        "MIN": { n: "Vikings", c: "#4F2683", l: "minnesota-vikings.svg" },
-        "NE":  { n: "Patriots", c: "#002244", l: "new-england-patriots.svg" },
-        "NO":  { n: "Saints", c: "#D3BC8D", l: "new-orleans-saints.svg" },
-        "NYG": { n: "Giants", c: "#0B2265", l: "new-york-giants.svg" },
-        "NYJ": { n: "Jets", c: "#125740", l: "new-york-jets.svg" },
-        "PHI": { n: "Eagles", c: "#004C54", l: "philadelphia-eagles.svg" },
-        "PIT": { n: "Steelers", c: "#FFB612", l: "pittsburgh-steelers.svg" },
-        "SF":  { n: "49ers", c: "#AA0000", l: "san-francisco-49ers.svg" },
-        "SEA": { n: "Seahawks", c: "#002244", l: "seattle-seahawks.svg" },
-        "TB":  { n: "Buccaneers", c: "#D50A0A", l: "tampa-bay-buccaneers.svg" },
-        "TEN": { n: "Titans", c: "#0C2340", l: "tennessee-titans.svg" },
-        "WAS": { n: "Commanders", c: "#5A1414", l: "washington-commanders.svg" }
+        "None": { n: "No Team Selected", c: "#333333", l: "nfl.svg" },
+        "ARI": { n: "Arizona Cardinals", c: "#97233F", l: "arizona-cardinals.svg" },
+        "ATL": { n: "Atlanta Falcons", c: "#A71930", l: "atlanta-falcons.svg" },
+        "BAL": { n: "Baltimore Ravens", c: "#241773", l: "baltimore-ravens.svg" },
+        "BUF": { n: "Buffalo Bills", c: "#00338D", l: "buffalo-bills.svg" },
+        "CAR": { n: "Carolina Panthers", c: "#0085CA", l: "carolina-panthers.svg" },
+        "CHI": { n: "Chicago Bears", c: "#0B162A", l: "chicago-bears.svg" },
+        "CIN": { n: "Cincinnati Bengals", c: "#FB4F14", l: "cincinnati-bengals.svg" },
+        "CLE": { n: "Cleveland Browns", c: "#311D00", l: "cleveland-browns.svg" },
+        "DAL": { n: "Dallas Cowboys", c: "#003594", l: "dallas-cowboys.svg" },
+        "DEN": { n: "Denver Broncos", c: "#FB4F14", l: "denver-broncos.svg" },
+        "DET": { n: "Detroit Lions", c: "#0076B6", l: "detroit-lions.svg" },
+        "GB":  { n: "Green Bay Packers", c: "#203731", l: "green-bay-packers.svg" },
+        "HOU": { n: "Houston Texans", c: "#03202F", l: "houston-texans.svg" },
+        "IND": { n: "Indianapolis Colts", c: "#002C5F", l: "indianapolis-colts.svg" },
+        "JAX": { n: "Jacksonville Jaguars", c: "#006778", l: "jacksonville-jaguars.svg" },
+        "KC":  { n: "Kansas City Chiefs", c: "#E31837", l: "kansas-city-chiefs.svg" },
+        "LV":  { n: "Las Vegas Raiders", c: "#000000", l: "oakland-raiders.svg" },
+        "LAC": { n: "Los Angeles Chargers", c: "#0080C6", l: "los-angeles-chargers.svg" },
+        "LAR": { n: "Los Angeles Rams", c: "#003594", l: "los-angeles-rams.svg" },
+        "MIA": { n: "Miami Dolphins", c: "#008E97", l: "miami-dolphins.svg" },
+        "MIN": { n: "Minnesota Vikings", c: "#4F2683", l: "minnesota-vikings.svg" },
+        "NE":  { n: "New England Patriots", c: "#002244", l: "new-england-patriots.svg" },
+        "NO":  { n: "New Orleans Saints", c: "#D3BC8D", l: "new-orleans-saints.svg" },
+        "NYG": { n: "New York Giants", c: "#0B2265", l: "new-york-giants.svg" },
+        "NYJ": { n: "New York Jets", c: "#125740", l: "new-york-jets.svg" },
+        "PHI": { n: "Philadelphia Eagles", c: "#004C54", l: "philadelphia-eagles.svg" },
+        "PIT": { n: "Pittsburgh Steelers", c: "#FFB612", l: "pittsburgh-steelers.svg" },
+        "SF":  { n: "San Francisco 49ers", c: "#AA0000", l: "san-francisco-49ers.svg" },
+        "SEA": { n: "Seattle Seahawks", c: "#002244", l: "seattle-seahawks.svg" },
+        "TB":  { n: "Tampa Bay Buccaneers", c: "#D50A0A", l: "tampa-bay-buccaneers.svg" },
+        "TEN": { n: "Tennessee Titans", c: "#0C2340", l: "tennessee-titans.svg" },
+        "WAS": { n: "Washington Commanders", c: "#5A1414", l: "washington-commanders.svg" }
     };
 
     const TRIVIA_DB = [
@@ -387,7 +411,7 @@
     ];
 
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC_PRE = 'nfl_beano_v8_4';
+    const TOPIC_PRE = 'nfl_beano_v8_5';
 
     // --- STATE ---
     let client, myId = 'p' + Math.random().toString(36).substr(2,6);
@@ -396,24 +420,29 @@
     let currentWinnerName = null;
     let gameState = { players: {}, triviaScores: {} };
     let triviaTimeout = null;
+    let triviaSettings = "normal"; // default
     let ls, is_sel;
 
     // --- INITIALIZATION ---
-    
-    // We wrap initialization to ensure DOM is ready
     document.addEventListener('DOMContentLoaded', () => {
         ls = document.getElementById('lobby-team');
         is_sel = document.getElementById('ingame-team');
         
-        // Populate Team Dropdowns
-        for(let t in TEAMS) {
-            // No check for "None" to allow it as default
+        // SORT TEAMS ALPHABETICALLY BY NAME
+        const sortedKeys = Object.keys(TEAMS).sort((a, b) => {
+            if (TEAMS[a].n < TEAMS[b].n) return -1;
+            if (TEAMS[a].n > TEAMS[b].n) return 1;
+            return 0;
+        });
+
+        // Populate Dropdowns
+        sortedKeys.forEach(t => {
             const tm = TEAMS[t];
             ls.innerHTML += `<option value="${t}">${tm.n}</option>`;
             if(t !== "None") {
                 is_sel.innerHTML += `<option value="${t}">${tm.n}</option>`;
             }
-        }
+        });
     });
 
     window.onerror = function(msg) {
@@ -430,8 +459,11 @@
         myTeam = ls.value;
         isHost = host;
         
-        if(host) roomCode = Math.random().toString(36).substr(2,4).toUpperCase();
-        else {
+        if(host) {
+            roomCode = Math.random().toString(36).substr(2,4).toUpperCase();
+            // Get Trivia Timing Choice
+            triviaSettings = document.getElementById('trivia-timer-input').value;
+        } else {
             roomCode = document.getElementById('room-input').value.trim().toUpperCase();
             if(roomCode.length !== 4) return alert("Enter 4-letter Code");
         }
@@ -459,7 +491,6 @@
         return p;
     }
 
-    // Weighted Random Generation
     function newCard() {
         const shuf = (arr) => [...arr].sort(()=>Math.random()-0.5);
         
@@ -527,9 +558,15 @@
     // --- TRIVIA SYSTEM ---
     function scheduleNextTrivia() {
         if(!isHost) return;
-        // 3 to 6 minutes
-        let delay = Math.floor(Math.random() * (360000 - 180000 + 1) + 180000);
-        console.log("Trivia in " + (delay/1000) + "s");
+        
+        // Determine Timing based on selection
+        let minTime, maxTime;
+        if(triviaSettings === "test") { minTime = 10000; maxTime = 30000; } // 10-30s
+        else if(triviaSettings === "slow") { minTime = 600000; maxTime = 900000; } // 10-15m
+        else { minTime = 180000; maxTime = 360000; } // 3-6m (default)
+
+        let delay = Math.floor(Math.random() * (maxTime - minTime + 1) + minTime);
+        console.log(`Next Trivia in ${(delay/1000).toFixed(0)}s (${triviaSettings})`);
         
         if(triviaTimeout) clearTimeout(triviaTimeout);
         triviaTimeout = setTimeout(() => {
