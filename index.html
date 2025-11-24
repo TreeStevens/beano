@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <!-- 
-    NFL BEANO v8.3
-    - Weighted Card Generation (Common/Uncommon/Rare)
-    - Random Trivia Minigame
-    - Trivia Scoring System
-    - Card Info/Intel Modal
+    NFL BEANO v8.4
+    - Fixed Dropdown Bug (Loading Order)
+    - Restored Full Team Names
+    - Trivia Minigame Included
+    - Weighted Card Generation
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v8.3</title>
+    <title>NFL BEANO v8.4</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Titan+One&display=swap" rel="stylesheet">
 
@@ -255,7 +255,7 @@
     <div id="lobby">
         <div class="lobby-card">
             <h1>NFL BEANO</h1>
-            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.3 &bull; TRIVIA EDITION</p>
+            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.4 &bull; TRIVIA EDITION</p>
 
             <div class="control-group">
                 <label>Your Name</label>
@@ -327,39 +327,39 @@
     };
 
     const TEAMS = {
-        "None": { c: "#333333", l: "nfl.svg" },
-        "ARI": { c: "#97233F", l: "arizona-cardinals.svg" },
-        "ATL": { c: "#A71930", l: "atlanta-falcons.svg" },
-        "BAL": { c: "#241773", l: "baltimore-ravens.svg" },
-        "BUF": { c: "#00338D", l: "buffalo-bills.svg" },
-        "CAR": { c: "#0085CA", l: "carolina-panthers.svg" },
-        "CHI": { c: "#0B162A", l: "chicago-bears.svg" },
-        "CIN": { c: "#FB4F14", l: "cincinnati-bengals.svg" },
-        "CLE": { c: "#311D00", l: "cleveland-browns.svg" },
-        "DAL": { c: "#003594", l: "dallas-cowboys.svg" },
-        "DEN": { c: "#FB4F14", l: "denver-broncos.svg" },
-        "DET": { c: "#0076B6", l: "detroit-lions.svg" },
-        "GB":  { c: "#203731", l: "green-bay-packers.svg" },
-        "HOU": { c: "#03202F", l: "houston-texans.svg" },
-        "IND": { c: "#002C5F", l: "indianapolis-colts.svg" },
-        "JAX": { c: "#006778", l: "jacksonville-jaguars.svg" },
-        "KC":  { c: "#E31837", l: "kansas-city-chiefs.svg" },
-        "LV":  { c: "#000000", l: "oakland-raiders.svg" },
-        "LAC": { c: "#0080C6", l: "los-angeles-chargers.svg" },
-        "LAR": { c: "#003594", l: "los-angeles-rams.svg" },
-        "MIA": { c: "#008E97", l: "miami-dolphins.svg" },
-        "MIN": { c: "#4F2683", l: "minnesota-vikings.svg" },
-        "NE":  { c: "#002244", l: "new-england-patriots.svg" },
-        "NO":  { c: "#D3BC8D", l: "new-orleans-saints.svg" },
-        "NYG": { c: "#0B2265", l: "new-york-giants.svg" },
-        "NYJ": { c: "#125740", l: "new-york-jets.svg" },
-        "PHI": { c: "#004C54", l: "philadelphia-eagles.svg" },
-        "PIT": { c: "#FFB612", l: "pittsburgh-steelers.svg" },
-        "SF":  { c: "#AA0000", l: "san-francisco-49ers.svg" },
-        "SEA": { c: "#002244", l: "seattle-seahawks.svg" },
-        "TB":  { c: "#D50A0A", l: "tampa-bay-buccaneers.svg" },
-        "TEN": { c: "#0C2340", l: "tennessee-titans.svg" },
-        "WAS": { c: "#5A1414", l: "washington-commanders.svg" }
+        "None": { n: "Select Team...", c: "#333333", l: "nfl.svg" },
+        "ARI": { n: "Cardinals", c: "#97233F", l: "arizona-cardinals.svg" },
+        "ATL": { n: "Falcons", c: "#A71930", l: "atlanta-falcons.svg" },
+        "BAL": { n: "Ravens", c: "#241773", l: "baltimore-ravens.svg" },
+        "BUF": { n: "Bills", c: "#00338D", l: "buffalo-bills.svg" },
+        "CAR": { n: "Panthers", c: "#0085CA", l: "carolina-panthers.svg" },
+        "CHI": { n: "Bears", c: "#0B162A", l: "chicago-bears.svg" },
+        "CIN": { n: "Bengals", c: "#FB4F14", l: "cincinnati-bengals.svg" },
+        "CLE": { n: "Browns", c: "#311D00", l: "cleveland-browns.svg" },
+        "DAL": { n: "Cowboys", c: "#003594", l: "dallas-cowboys.svg" },
+        "DEN": { n: "Broncos", c: "#FB4F14", l: "denver-broncos.svg" },
+        "DET": { n: "Lions", c: "#0076B6", l: "detroit-lions.svg" },
+        "GB":  { n: "Packers", c: "#203731", l: "green-bay-packers.svg" },
+        "HOU": { n: "Texans", c: "#03202F", l: "houston-texans.svg" },
+        "IND": { n: "Colts", c: "#002C5F", l: "indianapolis-colts.svg" },
+        "JAX": { n: "Jaguars", c: "#006778", l: "jacksonville-jaguars.svg" },
+        "KC":  { n: "Chiefs", c: "#E31837", l: "kansas-city-chiefs.svg" },
+        "LV":  { n: "Raiders", c: "#000000", l: "oakland-raiders.svg" },
+        "LAC": { n: "Chargers", c: "#0080C6", l: "los-angeles-chargers.svg" },
+        "LAR": { n: "Rams", c: "#003594", l: "los-angeles-rams.svg" },
+        "MIA": { n: "Dolphins", c: "#008E97", l: "miami-dolphins.svg" },
+        "MIN": { n: "Vikings", c: "#4F2683", l: "minnesota-vikings.svg" },
+        "NE":  { n: "Patriots", c: "#002244", l: "new-england-patriots.svg" },
+        "NO":  { n: "Saints", c: "#D3BC8D", l: "new-orleans-saints.svg" },
+        "NYG": { n: "Giants", c: "#0B2265", l: "new-york-giants.svg" },
+        "NYJ": { n: "Jets", c: "#125740", l: "new-york-jets.svg" },
+        "PHI": { n: "Eagles", c: "#004C54", l: "philadelphia-eagles.svg" },
+        "PIT": { n: "Steelers", c: "#FFB612", l: "pittsburgh-steelers.svg" },
+        "SF":  { n: "49ers", c: "#AA0000", l: "san-francisco-49ers.svg" },
+        "SEA": { n: "Seahawks", c: "#002244", l: "seattle-seahawks.svg" },
+        "TB":  { n: "Buccaneers", c: "#D50A0A", l: "tampa-bay-buccaneers.svg" },
+        "TEN": { n: "Titans", c: "#0C2340", l: "tennessee-titans.svg" },
+        "WAS": { n: "Commanders", c: "#5A1414", l: "washington-commanders.svg" }
     };
 
     const TRIVIA_DB = [
@@ -387,7 +387,7 @@
     ];
 
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC_PRE = 'nfl_beano_v8_3';
+    const TOPIC_PRE = 'nfl_beano_v8_4';
 
     // --- STATE ---
     let client, myId = 'p' + Math.random().toString(36).substr(2,6);
@@ -396,16 +396,25 @@
     let currentWinnerName = null;
     let gameState = { players: {}, triviaScores: {} };
     let triviaTimeout = null;
+    let ls, is_sel;
 
     // --- INITIALIZATION ---
-    const ls = document.getElementById('lobby-team');
-    const is = document.getElementById('ingame-team');
-    for(let t in TEAMS) {
-        if(t !== "None") {
-            ls.innerHTML += `<option value="${t}">${t}</option>`;
-            is.innerHTML += `<option value="${t}">${t}</option>`;
+    
+    // We wrap initialization to ensure DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        ls = document.getElementById('lobby-team');
+        is_sel = document.getElementById('ingame-team');
+        
+        // Populate Team Dropdowns
+        for(let t in TEAMS) {
+            // No check for "None" to allow it as default
+            const tm = TEAMS[t];
+            ls.innerHTML += `<option value="${t}">${tm.n}</option>`;
+            if(t !== "None") {
+                is_sel.innerHTML += `<option value="${t}">${tm.n}</option>`;
+            }
         }
-    }
+    });
 
     window.onerror = function(msg) {
         const b = document.getElementById('error-banner');
@@ -452,18 +461,13 @@
 
     // Weighted Random Generation
     function newCard() {
-        // Helper to shuffle array
         const shuf = (arr) => [...arr].sort(()=>Math.random()-0.5);
         
-        // Pick 12 Common, 8 Uncommon, 4 Rare
         const cList = shuf(TIERS.common.items).slice(0, 12);
         const uList = shuf(TIERS.uncommon.items).slice(0, 8);
         const rList = shuf(TIERS.rare.items).slice(0, 4);
         
-        // Combine and shuffle again
         let pool = shuf([...cList, ...uList, ...rList]);
-        
-        // Insert FREE space at index 12
         pool.splice(12, 0, "FREE");
         
         return { events: pool, marked: [12], winLine: [], rerolls: 2 };
@@ -521,20 +525,17 @@
     }
 
     // --- TRIVIA SYSTEM ---
-    
-    // Only Host calls this
     function scheduleNextTrivia() {
         if(!isHost) return;
-        // Random time between 3 minutes (180000) and 6 minutes (360000)
+        // 3 to 6 minutes
         let delay = Math.floor(Math.random() * (360000 - 180000 + 1) + 180000);
-        console.log("Next Trivia in: " + (delay/1000) + "s");
+        console.log("Trivia in " + (delay/1000) + "s");
         
         if(triviaTimeout) clearTimeout(triviaTimeout);
         triviaTimeout = setTimeout(() => {
-            // Pick question
             let qIdx = Math.floor(Math.random() * TRIVIA_DB.length);
             send({ type: 'TRIVIA_START', qIdx: qIdx });
-            scheduleNextTrivia(); // Schedule next one
+            scheduleNextTrivia(); 
         }, delay);
     }
 
@@ -554,7 +555,6 @@
             b.className = 't-btn';
             b.innerText = opt;
             b.onclick = () => {
-                // Disable all buttons
                 Array.from(opts.children).forEach(btn => btn.disabled = true);
                 if(idx === q.a) {
                     b.classList.add('correct');
@@ -562,15 +562,12 @@
                     send({ type: 'TRIVIA_WIN' });
                 } else {
                     b.classList.add('wrong');
-                    stat.innerText = "WRONG! Better luck next time.";
+                    stat.innerText = "WRONG!";
                 }
             };
             opts.appendChild(b);
         });
-
         box.classList.add('active');
-        
-        // Auto hide after 20s if no one wins
         setTimeout(() => box.classList.remove('active'), 20000);
     }
 
@@ -578,7 +575,7 @@
         const box = document.getElementById('trivia-box');
         const stat = document.getElementById('t-status');
         stat.innerText = winnerName + " WON!";
-        setTimeout(() => box.classList.remove('active'), 2000);
+        setTimeout(() => box.classList.remove('active'), 3000);
     }
 
     // --- RENDER ---
@@ -700,9 +697,7 @@
                 const msg = JSON.parse(m.toString());
                 if(msg.sender === myId) return;
 
-                if(msg.type === 'TRIVIA_START') {
-                    launchTrivia(msg.qIdx);
-                }
+                if(msg.type === 'TRIVIA_START') launchTrivia(msg.qIdx);
                 
                 if(isHost) {
                     if(msg.type === 'JOIN' && !gameState.players[msg.sender]) {
@@ -717,7 +712,6 @@
                         send({ type: 'STATE', state: gameState });
                     }
                     if(msg.type === 'TRIVIA_WIN') {
-                        // First one to reach host gets point
                         if(!gameState.triviaScores[msg.sender]) gameState.triviaScores[msg.sender] = 0;
                         gameState.triviaScores[msg.sender]++;
                         send({ type: 'TRIVIA_RESULT', winnerName: gameState.players[msg.sender].name });
@@ -731,12 +725,8 @@
                     }
                 } 
                 else {
-                    if(msg.type === 'STATE') {
-                        handleServerState(msg.state);
-                    }
-                    if(msg.type === 'TRIVIA_RESULT') {
-                        closeTrivia(msg.winnerName);
-                    }
+                    if(msg.type === 'STATE') handleServerState(msg.state);
+                    if(msg.type === 'TRIVIA_RESULT') closeTrivia(msg.winnerName);
                 }
             } catch(e) { console.log(e); }
         });
