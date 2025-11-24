@@ -3,287 +3,388 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v5.0</title>
+    <title>NFL BEANO v5.0 - Pop Art</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&family=Black+Han+Sans&display=swap" rel="stylesheet">
+    <!-- Fun Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Titan+One&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --my-bg: #1e293b;
-            --my-accent: #ffffff;
-            --field-bg: #0f172a;
+            --primary: #333;
+            --secondary: #555;
+            --accent: #fff;
+            --gold: #fbbf24;
         }
 
         * { box-sizing: border-box; }
 
         body {
             margin: 0; padding: 0;
-            font-family: 'Chakra Petch', sans-serif;
-            background: #000;
-            color: white;
+            font-family: 'Fredoka', sans-serif;
+            /* Split Background Effect (Blue / Purple vibe from image) */
+            background: linear-gradient(90deg, #0055ff 50%, #4400cc 50%);
+            background-attachment: fixed;
+            color: #333;
             overflow-x: hidden;
+        }
+
+        /* Mobile background tweak */
+        @media (max-width: 900px) {
+            body { background: #0055ff; }
         }
 
         /* --- LOBBY --- */
         #lobby {
-            position: fixed; inset: 0; z-index: 2000;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            min-height: 100vh;
             display: flex; justify-content: center; align-items: center;
-            padding: 20px;
+            background: rgba(0,0,0,0.85);
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 2000;
+            backdrop-filter: blur(8px);
         }
-        .lobby-card {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 40px; border-radius: 20px;
-            width: 100%; max-width: 450px; text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        .lobby-panel {
+            background: white;
+            padding: 40px;
+            border-radius: 30px;
+            width: 90%; max-width: 500px;
+            text-align: center;
+            box-shadow: 0 20px 0px rgba(0,0,0,0.2);
+            border: 6px solid #fff;
         }
-        h1 { font-family: 'Black Han Sans', sans-serif; font-size: 4rem; margin: 0; line-height: 1; text-transform: uppercase; color: #fff; text-shadow: 0 4px 0px #000; }
+        .lobby-panel h1 { font-family: 'Titan One', cursive; font-size: 3rem; margin: 0; color: #0055ff; text-transform: uppercase; letter-spacing: 2px; }
         
-        .control-group { margin: 20px 0; text-align: left; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; color: #94a3b8; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
-        input, select {
+        .input-group { margin: 20px 0; text-align: left; }
+        .input-group label { display: block; font-weight: 800; color: #555; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        select, input {
             width: 100%; padding: 15px;
-            background: #020617; border: 2px solid #334155; color: white;
-            border-radius: 8px; font-size: 1.1rem; outline: none; font-family: 'Chakra Petch', sans-serif;
+            border: 3px solid #eee; border-radius: 12px;
+            font-size: 1.1rem; font-family: 'Fredoka', sans-serif; font-weight: 700;
+            outline: none;
         }
-        input:focus, select:focus { border-color: #38bdf8; }
+        select:focus, input:focus { border-color: #0055ff; }
 
-        .btn-row { display: flex; gap: 10px; margin-top: 20px; }
         button {
-            flex: 1; padding: 15px;
-            font-family: 'Black Han Sans', sans-serif; font-size: 1.5rem;
-            border: none; border-radius: 8px; cursor: pointer;
-            text-transform: uppercase; transition: transform 0.1s;
+            width: 100%; padding: 15px;
+            border: none; border-radius: 15px;
+            font-family: 'Titan One', cursive; font-size: 1.5rem; letter-spacing: 1px;
+            cursor: pointer; transform: translateY(0); transition: 0.1s;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            margin-top: 10px;
         }
-        button:active { transform: scale(0.98); }
-        .btn-host { background: #fbbf24; color: black; }
-        .btn-join { background: transparent; border: 2px solid #475569; color: white; }
+        button:active { transform: translateY(6px); box-shadow: none; }
+        .btn-host { background: #ff4757; color: white; }
+        .btn-join { background: #2ed573; color: white; }
 
         /* --- GAME LAYOUT --- */
         #game-ui {
-            display: flex; min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 40px;
+            padding: 40px 20px;
+            min-height: 100vh;
         }
-        
-        /* Left Side: MY HAND */
-        .pane-my-hand {
-            flex: 6;
-            background: var(--my-bg);
-            padding: 20px;
-            border-right: 4px solid rgba(0,0,0,0.2);
-            transition: background 0.5s;
+
+        /* --- PLAYER ZONE (The wrapper around cards) --- */
+        .player-zone {
+            background-color: var(--primary); /* Dynamic Team Color */
+            border-radius: 30px;
+            padding: 30px;
+            width: auto;
+            min-width: 350px;
+            max-width: 100%;
+            border: 8px solid white;
+            box-shadow: 0 15px 0 rgba(0,0,0,0.25);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* The Confetti Background Pattern */
+        .player-zone::before {
+            content: ""; position: absolute; inset: 0;
+            background-image: 
+                radial-gradient(circle, rgba(255,255,255,0.15) 15%, transparent 16%),
+                radial-gradient(circle, rgba(255,255,255,0.15) 15%, transparent 16%);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            pointer-events: none;
+        }
+        .player-zone::after {
+            content: ""; position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q 25 20 50 10 T 100 10' stroke='white' fill='none' stroke-width='4' opacity='0.15'/%3E%3C/svg%3E");
+            background-size: 100px 50px;
+            opacity: 0.4; pointer-events: none;
+        }
+
+        /* --- PLAYER HEADER --- */
+        .zone-header {
+            position: relative; z-index: 5;
             display: flex; flex-direction: column; align-items: center;
-        }
-        
-        /* Right Side: THE FIELD */
-        .pane-field {
-            flex: 4;
-            background: var(--field-bg);
-            padding: 20px;
-            border-left: 1px solid rgba(255,255,255,0.1);
-            display: flex; flex-direction: column; align-items: center;
-            min-width: 320px;
+            margin-bottom: 20px;
+            margin-top: -50px; /* Pop out effect */
         }
 
-        .pane-title {
-            font-family: 'Black Han Sans', sans-serif; font-size: 2.5rem;
-            text-transform: uppercase; margin-bottom: 20px;
-            text-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+        .team-logo {
+            width: 110px; height: 110px;
+            background: white;
+            border-radius: 50%;
+            border: 5px solid white;
+            object-fit: contain;
+            padding: 5px;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+            transform: translateY(40px); /* Push down to overlap border */
         }
 
-        /* --- PLAYER WRAPPER --- */
-        .player-container { width: 100%; display: flex; flex-direction: column; gap: 20px; }
-
-        .player-block {
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px; padding: 15px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .player-block.me {
-            background: transparent; border: none; padding: 0;
+        .player-name {
+            color: white; font-family: 'Titan One', cursive;
+            font-size: 2.5rem; text-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 10px;
+            z-index: 6;
         }
 
-        .player-header {
-            display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+        /* --- CARD LAYOUT --- */
+        .cards-row {
+            position: relative; z-index: 5;
+            display: flex; flex-wrap: wrap; gap: 20px;
             justify-content: center;
         }
-        .player-name { font-size: 1.5rem; font-weight: bold; text-transform: uppercase; }
-        .team-logo { width: 40px; height: 40px; object-fit: contain; }
 
-        /* --- CARDS LAYOUT --- */
-        .cards-row {
-            display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;
-        }
-
-        .bingo-card-wrap {
+        .card-wrapper {
             display: flex; flex-direction: column; gap: 10px;
-            flex: 1 1 280px; max-width: 340px; min-width: 280px;
+            width: 300px; /* Fixed readable width */
         }
 
+        /* --- THE BINGO CARD ITSELF --- */
         .bingo-card {
-            background: white; border-radius: 12px; overflow: hidden;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.1);
+            border: 4px solid white;
         }
 
-        .card-top {
-            background: #333; color: white; text-align: center;
-            padding: 8px; font-weight: bold; font-size: 0.9rem; text-transform: uppercase;
+        .card-title {
+            background: var(--secondary); /* Dynamic */
+            color: white;
+            text-align: center; font-weight: 900;
+            padding: 8px; font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .grid {
             display: grid; grid-template-columns: repeat(5, 1fr);
-            gap: 1px; background: #ccc; border: 2px solid #ccc; aspect-ratio: 1/1;
+            gap: 2px; background: #fff; 
+            aspect-ratio: 1/1;
         }
 
         .cell {
-            background: #f1f5f9; color: #0f172a;
+            background: var(--primary); /* Defaults to team primary */
             display: flex; align-items: center; justify-content: center;
-            text-align: center; font-size: 10px; padding: 2px;
-            font-weight: 700; line-height: 1.1;
-            word-break: normal; user-select: none; cursor: default;
+            text-align: center; font-size: 11px; padding: 2px;
+            font-weight: 700; color: white;
+            line-height: 1.1; word-break: normal;
+            user-select: none;
+            border-radius: 2px;
         }
-        .me .cell { cursor: pointer; }
-        .me .cell:active { background: #e2e8f0; }
 
-        .cell.marked { background: #16a34a !important; color: white !important; }
-        .cell.winning-line { background: #fbbf24 !important; color: black !important; }
-        .cell.free { background: #333 !important; color: white !important; font-size: 11px; font-weight: 900; }
+        /* Alternate checkerboard for visual flair */
+        .cell:nth-child(odd) { filter: brightness(1.1); }
 
-        /* --- REROLL UI --- */
-        .reroll-bar {
+        /* Free Space */
+        .cell.free {
+            background: white !important;
+            color: #333 !important;
+            font-size: 14px; font-weight: 900;
+            border: 2px solid #eee;
+        }
+        /* Add logo to free space via background-image later? For now text */
+        .cell.free::after { content: "🏈"; display: block; font-size: 16px; }
+        .cell.free { display: flex; flex-direction: column; gap: 0; }
+        
+        /* Interaction */
+        .is-me .cell:not(.free) { cursor: pointer; }
+        .is-me .cell:not(.free):hover { filter: brightness(1.3); }
+        .is-me .cell:not(.free):active { transform: scale(0.95); }
+
+        /* Marked State */
+        .cell.marked {
+            background: #ffbf00 !important; /* Gold/Yellow mark */
+            color: black !important;
+            position: relative;
+        }
+
+        /* Winning Line */
+        .cell.winning-line {
+            background: #fff !important;
+            color: black !important;
+            animation: flash 1s infinite;
+        }
+        @keyframes flash { 0%{opacity:1} 50%{opacity:0.5} 100%{opacity:1} }
+
+        /* --- REROLL CONTROLS --- */
+        .reroll-container {
             display: flex; justify-content: space-between; align-items: center;
-            background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 8px;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px; border-radius: 12px;
+            font-weight: bold; color: white;
+            font-size: 0.9rem;
         }
+        
         .reroll-btn {
-            background: #ef4444; color: white; border: none; padding: 6px 12px;
-            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem;
+            background: #ff4757; color: white; border: none;
+            padding: 8px 16px; border-radius: 8px;
+            font-family: 'Titan One', cursive;
+            font-size: 0.8rem; cursor: pointer;
+            margin: 0; width: auto; box-shadow: 0 4px 0 rgba(0,0,0,0.2);
         }
-        .reroll-btn:disabled { background: #555; opacity: 0.6; cursor: not-allowed; }
-        .reroll-info { font-size: 0.8rem; opacity: 0.8; }
+        .reroll-btn:active { transform: translateY(4px); box-shadow: none; }
+        .reroll-btn:disabled { background: #555; color: #aaa; box-shadow: none; transform: none; cursor: default; }
 
-        /* --- HEADER & FOOTER --- */
-        .game-header-controls {
-            position: fixed; bottom: 20px; right: 20px; z-index: 100;
-            background: white; padding: 10px 20px; border-radius: 50px;
-            display: flex; gap: 15px; align-items: center; color: black;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        /* --- FLOATING CONTROLS --- */
+        .float-controls {
+            position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+            background: white; padding: 10px; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex; gap: 10px; align-items: center;
         }
 
         /* --- ANIMATIONS --- */
-        #celebration { position: fixed; inset: 0; pointer-events: none; z-index: 3000; }
-        .football { position: absolute; font-size: 4rem; animation: fly 3s linear infinite; }
-        @keyframes fly { from { transform: translateX(-10vw) rotate(0deg); } to { transform: translateX(110vw) rotate(720deg); } }
-
-        .hidden { display: none !important; }
-        
-        /* Opponent scaling */
-        .pane-field .bingo-card { transform: scale(0.95); transform-origin: top center; }
-
-        @media (max-width: 800px) {
-            #game-ui { flex-direction: column; }
-            .pane-my-hand { min-height: 60vh; border-right: none; border-bottom: 4px solid rgba(0,0,0,0.2); }
-            .pane-field { min-height: 40vh; }
+        .player-zone.winner {
+            border-color: #ffbf00;
+            animation: winnerPulse 1s infinite alternate;
+            z-index: 10;
         }
+        @keyframes winnerPulse { from {box-shadow: 0 0 20px #ffbf00;} to {box-shadow: 0 0 60px #ffbf00;} }
+
+        #celebration { position: fixed; inset: 0; pointer-events: none; z-index: 5000; overflow: hidden; }
+        .football { position: absolute; font-size: 5rem; animation: spinFly 3s linear infinite; }
+        @keyframes spinFly { from { transform: translate(-100px, 100vh) rotate(0deg); } to { transform: translate(120vw, -200px) rotate(720deg); } }
+        
+        .hidden { display: none !important; }
+
     </style>
 </head>
 <body>
 
     <!-- LOBBY -->
     <div id="lobby">
-        <div class="lobby-card">
-            <h1>NFL BEANO</h1>
-            <p style="color:#94a3b8; margin-bottom:30px; font-weight:bold; letter-spacing:1px;">GAME DAY EDITION v5.0</p>
+        <div class="lobby-panel">
+            <h1>NFL Beano</h1>
+            <h3 style="margin-top:0; color:#888;">v5.0</h3>
 
-            <div class="control-group">
-                <label>Player Name</label>
-                <input type="text" id="username" placeholder="e.g. Stevens" maxlength="12">
+            <div class="input-group">
+                <label>Name</label>
+                <input type="text" id="username" placeholder="ENTER NAME" maxlength="12">
             </div>
 
-            <div class="control-group">
-                <label>Your Team</label>
-                <select id="team-select"></select>
-            </div>
-
-            <div class="control-group">
-                <label>Cards to Play</label>
-                <select id="card-count">
-                    <option value="1">1 Card</option>
-                    <option value="2">2 Cards</option>
-                    <option value="3">3 Cards</option>
+            <div class="input-group">
+                <label>Team Theme</label>
+                <select id="lobby-team-select">
+                    <option value="None">Select Team...</option>
+                    <!-- Teams JS -->
                 </select>
             </div>
 
-            <div class="btn-row">
-                <button class="btn-host" onclick="createGame()">HOST</button>
-                <button class="btn-join" onclick="joinGame()">JOIN</button>
+            <div style="display:flex; gap:15px;">
+                <div class="input-group" style="flex:1">
+                    <label>Cards</label>
+                    <select id="lobby-count">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+                <div class="input-group" style="flex:2">
+                    <label>Room</label>
+                    <input type="text" id="room-code-input" placeholder="CODE" style="text-transform: uppercase;">
+                </div>
             </div>
 
-            <div style="margin-top:15px;">
-                <input type="text" id="room-code" placeholder="ROOM CODE (For Joining)" style="text-align:center; text-transform:uppercase;">
+            <div style="display:flex; gap:10px;">
+                <button class="btn-host" onclick="startGame(true)">HOST</button>
+                <button class="btn-join" onclick="startGame(false)">JOIN</button>
             </div>
         </div>
     </div>
 
-    <!-- GAME UI -->
+    <!-- GAME BOARD -->
     <div id="game-ui" class="hidden">
-        
-        <!-- MY HAND -->
-        <div class="pane-my-hand" id="pane-my-hand">
-            <div class="pane-title">MY HAND</div>
-            <div id="my-area" class="player-container" style="align-items:center;"></div>
+        <!-- Players will be injected here as equal zones -->
+        <div style="width:100%; text-align:center; color:white; font-size:2rem; font-family:'Titan One'; margin-top:100px;" id="waiting-msg">
+            Connecting to Host...
         </div>
+    </div>
 
-        <!-- THE FIELD -->
-        <div class="pane-field">
-            <div class="pane-title">THE FIELD</div>
-            <div id="field-area" class="player-container"></div>
-        </div>
-
-        <!-- CONTROLS -->
-        <div class="game-header-controls">
-            <strong id="room-display">----</strong>
-            <select id="ingame-team" onchange="updateTeam()" style="padding:5px; width:auto; font-size:0.8rem; border:1px solid #ccc; background:white; color:black;"></select>
-            <button id="reset-btn" onclick="resetGame()" style="font-size:0.8rem; padding:5px 10px; background:#ef4444; color:white; display:none;">RESET</button>
-        </div>
+    <!-- CONTROLS -->
+    <div class="float-controls hidden" id="controls">
+        <div style="font-weight:bold;">ROOM: <span id="room-display"></span></div>
+        <select id="ingame-team-select" onchange="changeMyTeam()" style="padding:5px; width:auto; font-size:0.8rem; border:1px solid #ccc;">
+            <!-- Teams JS -->
+        </select>
+        <button id="host-reset-btn" onclick="resetGame()" style="background:#ff4757; color:white; font-size:0.8rem; padding:5px 10px; width:auto; display:none;">RESET</button>
     </div>
 
     <div id="celebration"></div>
 
 <script>
     // =================================================================
-    // 1. CONFIG
+    // 1. DATA & CONFIG
     // =================================================================
+    // Updated logos to match your screenshot exactly
     const TEAMS = {
-        "None": { p: "#334155", s: "#ffffff" },
-        "ARI": { p: "#97233F", s: "#000000" }, "ATL": { p: "#A71930", s: "#000000" },
-        "BAL": { p: "#241773", s: "#9E7C0C" }, "BUF": { p: "#00338D", s: "#C60C30" },
-        "CAR": { p: "#0085CA", s: "#000000" }, "CHI": { p: "#0B162A", s: "#C83803" },
-        "CIN": { p: "#FB4F14", s: "#000000" }, "CLE": { p: "#311D00", s: "#FF3C00" },
-        "DAL": { p: "#003594", s: "#869397" }, "DEN": { p: "#FB4F14", s: "#002244" },
-        "DET": { p: "#0076B6", s: "#B0B7BC" }, "GB":  { p: "#203731", s: "#FFB612" },
-        "HOU": { p: "#03202F", s: "#A71930" }, "IND": { p: "#002C5F", s: "#A2AAAD" },
-        "JAX": { p: "#006778", s: "#9F792C" }, "KC":  { p: "#E31837", s: "#FFB81C" },
-        "LV":  { p: "#000000", s: "#A5ACAF" }, "LAC": { p: "#0080C6", s: "#FFC20E" },
-        "LAR": { p: "#003594", s: "#FFD100" }, "MIA": { p: "#008E97", s: "#FC4C02" },
-        "MIN": { p: "#4F2683", s: "#FFC62F" }, "NE":  { p: "#002244", s: "#C60C30" },
-        "NO":  { p: "#D3BC8D", s: "#101820" }, "NYG": { p: "#0B2265", s: "#A71930" },
-        "NYJ": { p: "#125740", s: "#FFFFFF" }, "PHI": { p: "#004C54", s: "#A5ACAF" },
-        "PIT": { p: "#FFB612", s: "#101820" }, "SF":  { p: "#AA0000", s: "#B3995D" },
-        "SEA": { p: "#002244", s: "#69BE28" }, "TB":  { p: "#D50A0A", s: "#34302B" },
-        "TEN": { p: "#0C2340", s: "#4B92DB" }, "WAS": { p: "#5A1414", s: "#FFB612" }
+        "None": { p: "#333333", s: "#555555", logo: "nfl.svg" },
+        "ARI": { p: "#97233F", s: "#000000", logo: "arizona-cardinals.svg" },
+        "ATL": { p: "#A71930", s: "#000000", logo: "atlanta-falcons.svg" },
+        "BAL": { p: "#241773", s: "#9E7C0C", logo: "baltimore-ravens.svg" },
+        "BUF": { p: "#00338D", s: "#C60C30", logo: "buffalo-bills.svg" },
+        "CAR": { p: "#0085CA", s: "#000000", logo: "carolina-panthers.svg" },
+        "CHI": { p: "#0B162A", s: "#C83803", logo: "chicago-bears.svg" },
+        "CIN": { p: "#FB4F14", s: "#000000", logo: "cincinnati-bengals.svg" },
+        "CLE": { p: "#311D00", s: "#FF3C00", logo: "cleveland-browns.svg" },
+        "DAL": { p: "#003594", s: "#869397", logo: "dallas-cowboys.svg" },
+        "DEN": { p: "#FB4F14", s: "#002244", logo: "denver-broncos.svg" },
+        "DET": { p: "#0076B6", s: "#B0B7BC", logo: "detroit-lions.svg" },
+        "GB":  { p: "#203731", s: "#FFB612", logo: "green-bay-packers.svg" },
+        "HOU": { p: "#03202F", s: "#A71930", logo: "houston-texans.svg" },
+        "IND": { p: "#002C5F", s: "#A2AAAD", logo: "indianapolis-colts.svg" },
+        "JAX": { p: "#006778", s: "#9F792C", logo: "jacksonville-jaguars.svg" },
+        "KC":  { p: "#E31837", s: "#FFB81C", logo: "kansas-city-chiefs.svg" },
+        "LV":  { p: "#000000", s: "#A5ACAF", logo: "oakland-raiders.svg" }, /* Legacy name from your list */
+        "LAC": { p: "#0080C6", s: "#FFC20E", logo: "los-angeles-chargers.svg" },
+        "LAR": { p: "#003594", s: "#FFD100", logo: "los-angeles-rams.svg" },
+        "MIA": { p: "#008E97", s: "#FC4C02", logo: "miami-dolphins.svg" },
+        "MIN": { p: "#4F2683", s: "#FFC62F", logo: "minnesota-vikings.svg" },
+        "NE":  { p: "#002244", s: "#C60C30", logo: "new-england-patriots.svg" },
+        "NO":  { p: "#D3BC8D", s: "#101820", logo: "new-orleans-saints.svg" },
+        "NYG": { p: "#0B2265", s: "#A71930", logo: "new-york-giants.svg" },
+        "NYJ": { p: "#125740", s: "#FFFFFF", logo: "new-york-jets.svg" },
+        "PHI": { p: "#004C54", s: "#A5ACAF", logo: "philadelphia-eagles.svg" },
+        "PIT": { p: "#FFB612", s: "#101820", logo: "pittsburgh-steelers.svg" },
+        "SF":  { p: "#AA0000", s: "#B3995D", logo: "san-francisco-49ers.svg" },
+        "SEA": { p: "#002244", s: "#69BE28", logo: "seattle-seahawks.svg" },
+        "TB":  { p: "#D50A0A", s: "#34302B", logo: "tampa-bay-buccaneers.svg" },
+        "TEN": { p: "#0C2340", s: "#4B92DB", logo: "tennessee-titans.svg" },
+        "WAS": { p: "#5A1414", s: "#FFB612", logo: "washington-commanders.svg" }
     };
 
     const EVENTS = [
-        "Touchdown", "Field Goal", "First Down", "2-Pt Conv", "QB Scramble", "4th Down Try", 
-        "Pass > 20 Yds", "Run > 10 Yds", "3rd & Long", "Screen > 10", "Play Action", "QB Sneak", 
-        "Hail Mary", "Empty Backfield", "Shotgun", "Trick Play", "Fake Punt", "Sack", "TFL", 
-        "Pass Defended", "Tipped Pass", "Thrown Away", "Interception", "Fumble", "Turnover", 
-        "Defensive TD", "Goal Line Stand", "3-and-Out", "Red Zone Stop", "Blocked Kick", "Penalty Flag", 
-        "Holding", "False Start", "Pass Int", "Delay of Game", "Int Grounding", 
-        "Roughing Passer", "Face Mask", "Timeout", "2-Min Warning", "Challenge Flag", "Measurement", 
-        "Overtime", "Injury", "Coach Yelling", "Mascot", "Blimp Shot", "Face Paint", "Shirtless Fan", 
-        "Truck Ad", "Beer Ad", "Helmet Throw", "Cheerleader", "Celebrity", "Hurdle", "Juke", "One-Handed Catch"
+        "TOUCHDOWN", "FIELD GOAL", "FIRST DOWN", "2-PT CONV", "QB SCRAMBLE", "4TH DOWN TRY", 
+        "PASS > 20 YDS", "RUN > 10 YDS", "3RD & LONG", "SCREEN > 10", "PLAY ACTION", "QB SNEAK", 
+        "HAIL MARY", "EMPTY BACKFIELD", "SHOTGUN", "TRICK PLAY", "FAKE PUNT", "SACK", "TFL", 
+        "PASS DEFENDED", "TIPPED PASS", "THROWN AWAY", "INTERCEPTION", "FUMBLE", "TURNOVER", 
+        "DEFENSIVE TD", "GOAL LINE STAND", "3-AND-OUT", "RED ZONE STOP", "BLOCKED KICK", "PENALTY FLAG", 
+        "HOLDING", "FALSE START", "PASS INT", "DELAY OF GAME", "INT GROUNDING", 
+        "ROUGHING PASSER", "FACE MASK", "TIMEOUT", "2-MIN WARNING", "CHALLENGE FLAG", "MEASUREMENT", 
+        "OVERTIME", "INJURY", "COACH YELLING", "MASCOT", "BLIMP SHOT", "FACE PAINT", "SHIRTLESS FAN", 
+        "TRUCK AD", "BEER AD", "HELMET THROW", "CHEERLEADER", "CELEBRITY", "HURDLE", "JUKE", "ONE-HANDED CATCH"
     ];
 
     const WINS = [
@@ -294,84 +395,55 @@
 
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
     const TOPIC = 'nfl_beano_v5';
-    
-    // STATE
-    let client, myId = 'u' + Math.random().toString(36).substr(2,6);
-    let myName="", myTeam="None", roomCode="", isHost=false;
+    let client, myId='u'+Math.random().toString(36).substr(2,5), myName="", myTeam="None", roomCode="", isHost=false;
     let gameState = { players: {} };
 
-    // POPULATE SELECTS
-    const tSelect = document.getElementById('team-select');
-    const iSelect = document.getElementById('ingame-team');
+    // INIT UI
+    const ls = document.getElementById('lobby-team-select');
+    const gs = document.getElementById('ingame-team-select');
     for(let t in TEAMS) {
         if(t!=="None") {
-            tSelect.innerHTML += `<option value="${t}">${t}</option>`;
-            iSelect.innerHTML += `<option value="${t}">${t}</option>`;
+            ls.innerHTML += `<option value="${t}">${t}</option>`;
+            gs.innerHTML += `<option value="${t}">${t}</option>`;
         }
     }
 
     // =================================================================
     // 2. LOGIC
     // =================================================================
-    function createGame() {
-        initPlayer(true);
-        const count = parseInt(document.getElementById('card-count').value);
-        // HOST creates themselves immediately
-        gameState.players[myId] = generatePlayer(myName, myTeam, count);
-        
-        enterGame();
-        connect();
-    }
-
-    function joinGame() {
-        roomCode = document.getElementById('room-code').value.trim().toUpperCase();
-        if(roomCode.length !== 4) return alert("Please enter a 4-letter Room Code");
-        initPlayer(false);
-        
-        // GUEST DOES NOT create themselves yet. Wait for Host.
-        enterGame();
-        connect();
-    }
-
-    function initPlayer(host) {
+    function startGame(host) {
         myName = document.getElementById('username').value.trim() || (host?"HOST":"GUEST");
-        myTeam = document.getElementById('team-select').value;
+        myTeam = ls.value;
+        const count = parseInt(document.getElementById('lobby-count').value);
+        
         isHost = host;
+        roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
         if(host) roomCode = Math.random().toString(36).substr(2,4).toUpperCase();
         
-        // Update In-Game UI
-        document.getElementById('ingame-team').value = myTeam;
-        applyTheme(myTeam);
-    }
+        if(!roomCode) return alert("Need Code");
 
-    function enterGame() {
-        document.getElementById('lobby').classList.add('hidden');
-        document.getElementById('game-ui').classList.remove('hidden');
-        document.getElementById('room-display').textContent = `ROOM: ${roomCode}`;
-        if(isHost) document.getElementById('reset-btn').style.display = 'block';
-        render();
-    }
-
-    function applyTheme(team) {
-        const colors = TEAMS[team] || TEAMS["None"];
-        const pane = document.getElementById('pane-my-hand');
-        pane.style.setProperty('--my-bg', colors.p);
-        pane.style.backgroundColor = colors.p; // Force update
-    }
-
-    function updateTeam() {
-        myTeam = document.getElementById('ingame-team').value;
-        applyTheme(myTeam);
-        if(gameState.players[myId]) {
-            gameState.players[myId].team = myTeam;
-            render();
-            send({ type: 'UPDATE_TEAM', team: myTeam });
+        if(host) {
+            gameState.players[myId] = generatePlayer(myName, myTeam, count);
         }
+        
+        enterUI();
+        connect();
+    }
+
+    function enterUI() {
+        document.getElementById('lobby').classList.add('hidden');
+        document.getElementById('controls').classList.remove('hidden');
+        document.getElementById('room-display').innerText = roomCode;
+        document.getElementById('ingame-team-select').value = myTeam;
+        if(isHost) document.getElementById('host-reset-btn').style.display = 'block';
+        render();
     }
 
     function generatePlayer(name, team, count) {
         let p = { name, team, cards: [] };
-        for(let i=0; i<count; i++) p.cards.push(createCardData());
+        for(let i=0; i<count; i++) {
+            p.cards.push(createCardData());
+        }
         return p;
     }
 
@@ -381,77 +453,116 @@
         return { events: deck, marked: [12], winLine: [], rerolls: 2 };
     }
 
+    function rerollCard(pId, cardIndex) {
+        if(pId !== myId) return;
+        let p = gameState.players[myId];
+        let c = p.cards[cardIndex];
+        if(c.rerolls > 0) {
+            if(confirm("Reroll this card? New events will be generated.")) {
+                c.rerolls--;
+                let newData = createCardData();
+                c.events = newData.events;
+                c.marked = [12]; // Keep Free
+                c.winLine = [];
+                render();
+                send({ type: 'UPDATE', pData: p });
+            }
+        }
+    }
+
+    function changeMyTeam() {
+        myTeam = document.getElementById('ingame-team-select').value;
+        if(gameState.players[myId]) {
+            gameState.players[myId].team = myTeam;
+            render();
+            send({ type: 'UPDATE_TEAM', team: myTeam });
+        }
+    }
+
+    function checkWin(m) {
+        for(let l of WINS) if(l.every(i=>m.includes(i))) return l;
+        return null;
+    }
+
     // =================================================================
     // 3. RENDER
     // =================================================================
     function render() {
-        const myArea = document.getElementById('my-area');
-        const fieldArea = document.getElementById('field-area');
-        myArea.innerHTML = '';
-        fieldArea.innerHTML = '';
+        const board = document.getElementById('game-ui');
+        board.innerHTML = '';
 
-        // RENDER ME
-        if(gameState.players[myId]) {
-            renderPlayer(gameState.players[myId], true, myArea);
+        // Sort: Me first, then others
+        const pIds = Object.keys(gameState.players).sort((a,b) => {
+            if(a === myId) return -1;
+            if(b === myId) return 1;
+            return 0;
+        });
+
+        if(pIds.length === 0) {
+            document.getElementById('waiting-msg').style.display = 'block';
+            return;
         } else {
-            myArea.innerHTML = '<h2 style="opacity:0.5;">CONNECTING TO HOST...</h2>';
+             // remove waiting msg if exists
+            const wm = document.getElementById('waiting-msg');
+            if(wm) wm.style.display = 'none';
         }
 
-        // RENDER FIELD
-        const others = Object.keys(gameState.players).filter(id => id !== myId);
-        if(others.length === 0) {
-            fieldArea.innerHTML = '<div style="opacity:0.5; margin-top:50px;">WAITING FOR PLAYERS...</div>';
-        } else {
-            others.forEach(pid => renderPlayer(gameState.players[pid], false, fieldArea));
-        }
+        pIds.forEach(id => {
+            renderPlayerZone(gameState.players[id], id === myId, board);
+        });
     }
 
-    function renderPlayer(p, isMe, container) {
-        const wrap = document.createElement('div');
-        wrap.className = isMe ? 'player-block me' : 'player-block';
+    function renderPlayerZone(p, isMe, container) {
         const colors = TEAMS[p.team] || TEAMS["None"];
-
-        // Header
-        const head = document.createElement('div');
-        head.className = 'player-header';
         
-        // Try loading logo
-        const logo = document.createElement('img');
-        logo.className = 'team-logo';
-        logo.src = `logos/${p.team}.svg`;
-        logo.onerror = function(){ this.style.display='none'; };
-        if(p.team!=="None") head.appendChild(logo);
+        // The Player Zone Wrapper
+        const zone = document.createElement('div');
+        zone.className = 'player-zone';
+        zone.style.setProperty('--primary', colors.p);
+        zone.style.setProperty('--secondary', colors.s);
+        
+        // Winner Animation
+        if(p.cards.some(c => c.winLine.length > 0)) zone.classList.add('winner');
 
+        // --- Header ---
+        const header = document.createElement('div');
+        header.className = 'zone-header';
+
+        // Logo
+        const img = document.createElement('img');
+        img.className = 'team-logo';
+        img.src = `logos/${colors.logo}`;
+        img.onerror = function(){ this.style.display='none'; }; 
+        header.appendChild(img);
+
+        // Name
         const name = document.createElement('div');
         name.className = 'player-name';
-        name.innerHTML = p.name;
-        if(p.cards.some(c => c.winLine.length>0)) {
-            name.innerHTML += " 🏆";
-            name.style.color = "#fbbf24";
-        } else {
-            name.style.color = isMe ? "white" : "#cbd5e1";
-        }
-        head.appendChild(name);
-        wrap.appendChild(head);
+        name.innerText = p.name + (p.cards.some(c=>c.winLine.length>0) ? " 🏆" : "");
+        header.appendChild(name);
+        
+        zone.appendChild(header);
 
-        // Cards Row
+        // --- Cards Row ---
         const row = document.createElement('div');
         row.className = 'cards-row';
 
         p.cards.forEach((c, cIdx) => {
-            const cWrap = document.createElement('div');
-            cWrap.className = 'bingo-card-wrap';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'card-wrapper';
 
             const card = document.createElement('div');
             card.className = 'bingo-card';
 
-            // Card Header
-            const cTop = document.createElement('div');
-            cTop.className = 'card-top';
-            cTop.textContent = `CARD ${cIdx+1}`;
-            cTop.style.backgroundColor = (c.winLine.length>0) ? '#fbbf24' : (isMe ? 'rgba(0,0,0,0.4)' : colors.p);
-            if(c.winLine.length>0) cTop.style.color = 'black';
-            card.appendChild(cTop);
+            // Card Title
+            const title = document.createElement('div');
+            title.className = 'card-title';
+            title.innerText = `CARD ${cIdx+1}`;
+            if(c.winLine.length>0) {
+                title.style.background = "#ffbf00"; 
+                title.style.color = "black";
+            }
+            card.appendChild(title);
 
             // Grid
             const grid = document.createElement('div');
@@ -460,126 +571,116 @@
             c.events.forEach((evt, idx) => {
                 const cell = document.createElement('div');
                 cell.className = 'cell';
-                cell.textContent = evt;
-
-                if(idx === 12) {
+                
+                // Free Space
+                if(idx===12) {
                     cell.classList.add('free');
-                    cell.style.backgroundColor = colors.p;
+                    cell.innerHTML = "FREE<br><span style='font-size:16px'>🏈</span>";
+                } else {
+                    cell.innerText = evt;
                 }
-                if(c.marked.includes(idx)) cell.classList.add('marked');
-                if(c.winLine.includes(idx)) cell.classList.add('winning-line');
 
+                // Colors
                 if(isMe) {
+                    zone.classList.add('is-me');
                     cell.onclick = () => {
                         if(idx===12) return;
                         if(c.marked.includes(idx)) c.marked = c.marked.filter(x=>x!==idx);
                         else c.marked.push(idx);
-                        checkWin(c);
+                        
+                        const w = checkWin(c.marked);
+                        c.winLine = w || [];
+                        if(w) celebrate();
+
                         render();
-                        send({type:'UPDATE', pData:p});
+                        send({ type:'UPDATE', pData: p });
                     }
                 }
+
+                // Marked / Win
+                if(c.marked.includes(idx)) cell.classList.add('marked');
+                if(c.winLine.includes(idx)) cell.classList.add('winning-line');
+                
                 grid.appendChild(cell);
             });
             card.appendChild(grid);
-            cWrap.appendChild(card);
+            wrapper.appendChild(card);
 
-            // Reroll UI
+            // Reroll (Me Only)
             if(isMe) {
-                const bar = document.createElement('div');
-                bar.className = 'reroll-bar';
+                const rrDiv = document.createElement('div');
+                rrDiv.className = 'reroll-container';
                 
-                const info = document.createElement('span');
-                info.className = 'reroll-info';
-                info.textContent = `${c.rerolls} Rerolls Left`;
+                const countSpan = document.createElement('span');
+                countSpan.innerText = `REROLLS: ${c.rerolls}`;
                 
                 const btn = document.createElement('button');
                 btn.className = 'reroll-btn';
-                btn.textContent = c.rerolls > 0 ? "REROLL" : "STUCK";
-                btn.disabled = c.rerolls <= 0;
-                btn.onclick = () => {
-                    if(confirm("Reroll this card? (Marks will be cleared)")) {
-                        c.rerolls--;
-                        let newC = createCardData();
-                        c.events = newC.events;
-                        c.marked = [12];
-                        c.winLine = [];
-                        render();
-                        send({type:'UPDATE', pData:p});
-                    }
-                };
+                btn.innerText = "ROLL NEW";
+                if(c.rerolls <= 0) btn.disabled = true;
+                else {
+                    btn.onclick = () => rerollCard(myId, cIdx);
+                }
 
-                bar.appendChild(info);
-                bar.appendChild(btn);
-                cWrap.appendChild(bar);
+                rrDiv.appendChild(countSpan);
+                rrDiv.appendChild(btn);
+                wrapper.appendChild(rrDiv);
             }
 
-            row.appendChild(cWrap);
+            row.appendChild(wrapper);
         });
 
-        wrap.appendChild(row);
-        container.appendChild(wrap);
+        zone.appendChild(row);
+        container.appendChild(zone);
     }
 
-    function checkWin(c) {
-        for(let l of WINS) {
-            if(l.every(i => c.marked.includes(i))) {
-                c.winLine = l;
-                celebrate();
-                return;
-            }
-        }
-        c.winLine = [];
-    }
 
     // =================================================================
     // 4. NETWORK
     // =================================================================
     function connect() {
         client = mqtt.connect(BROKER);
-        const topic = `${TOPIC}/${roomCode}`;
-
-        client.on('connect', () => {
-            client.subscribe(topic);
-            if(isHost) setInterval(() => send({ type: 'STATE', state: gameState }), 1000);
+        const t = `${TOPIC}/${roomCode}`;
+        client.on('connect', ()=>{
+            client.subscribe(t);
+            if(isHost) setInterval(()=>send({type:'STATE', state:gameState}), 1000);
             else {
-                const count = parseInt(document.getElementById('card-count').value);
-                let iv = setInterval(() => {
+                const cnt = parseInt(document.getElementById('lobby-count').value);
+                let iv = setInterval(()=>{
                     if(gameState.players[myId]) clearInterval(iv);
-                    else send({ type: 'JOIN', name: myName, team: myTeam, count: count });
-                }, 1500);
+                    else send({type:'JOIN', name:myName, team:myTeam, count:cnt});
+                }, 2000);
             }
         });
 
-        client.on('message', (t, m) => {
-            const msg = JSON.parse(m.toString());
-            if(msg.sender === myId) return;
+        client.on('message', (topic, msg)=>{
+            const m = JSON.parse(msg.toString());
+            if(m.sender === myId) return;
 
             if(isHost) {
-                if(msg.type === 'JOIN' && !gameState.players[msg.sender]) {
-                    gameState.players[msg.sender] = generatePlayer(msg.name, msg.team, msg.count);
+                if(m.type==='JOIN' && !gameState.players[m.sender]) {
+                    gameState.players[m.sender] = generatePlayer(m.name, m.team, m.count);
                     render();
                 }
-                if(msg.type === 'UPDATE') {
-                    gameState.players[msg.sender] = msg.pData;
-                    if(msg.pData.cards.some(c => c.winLine.length>0)) celebrate();
+                if(m.type==='UPDATE') {
+                    gameState.players[m.sender] = m.pData;
+                    if(m.pData.cards.some(c=>c.winLine.length>0)) celebrate();
                     render();
                 }
-                if(msg.type === 'UPDATE_TEAM') {
-                    if(gameState.players[msg.sender]) {
-                        gameState.players[msg.sender].team = msg.team;
+                if(m.type==='UPDATE_TEAM') {
+                    if(gameState.players[m.sender]) {
+                        gameState.players[m.sender].team = m.team;
                         render();
                     }
                 }
             } else {
-                if(msg.type === 'STATE') {
+                if(m.type==='STATE') {
                     let local = gameState.players[myId];
-                    gameState = msg.state;
-                    if(local) gameState.players[myId] = local;
+                    gameState = m.state;
+                    if(local) gameState.players[myId] = local; 
                     
-                    // Global celebration check
-                    if(Object.values(gameState.players).some(p=>p.cards.some(c=>c.winLine.length>0)) && !window.hasCeleb) {
-                        celebrate(); window.hasCeleb=true;
+                    if(Object.values(gameState.players).some(p=>p.cards.some(c=>c.winLine.length>0)) && !window.hasCel) {
+                        celebrate(); window.hasCel=true;
                     }
                     render();
                 }
@@ -590,19 +691,19 @@
     function send(p) { p.sender=myId; client.publish(`${TOPIC}/${roomCode}`, JSON.stringify(p)); }
 
     function resetGame() {
-        if(confirm("Reset all players?")) {
-            Object.keys(gameState.players).forEach(id => {
+        if(confirm("Reset all cards?")) {
+            Object.keys(gameState.players).forEach(id=>{
                 let p = gameState.players[id];
                 gameState.players[id] = generatePlayer(p.name, p.team, p.cards.length);
             });
-            window.hasCeleb = false;
+            window.hasCel=false;
             render();
         }
     }
 
     function celebrate() {
         const b = document.getElementById('celebration');
-        for(let i=0; i<15; i++){
+        for(let i=0; i<20; i++){
             let f = document.createElement('div'); f.className='football'; f.innerHTML='🏈';
             f.style.left='-100px'; f.style.top=Math.random()*80+'vh';
             f.style.animationDuration=(Math.random()*2+2)+'s';
