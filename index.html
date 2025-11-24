@@ -1,16 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- 
+    NFL BEANO v8.2
+    - Local Images
+    - Larger Cards
+    - Deep Team Styling
+    - Public Reroll Counts
+    - Global Winner Message
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v8.0</title>
+    <title>NFL BEANO v8.2</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Titan+One&display=swap" rel="stylesheet">
 
     <style>
         :root {
             --bg-color: #0f172a;
-            --card-width: 340px; /* Increased width for readability */
+            --card-width: 360px; /* Increased size */
         }
 
         * { box-sizing: border-box; }
@@ -22,6 +30,7 @@
             font-family: 'Chakra Petch', sans-serif;
             overflow-x: hidden;
             transition: background-color 0.5s ease;
+            padding-bottom: 80px;
         }
 
         /* --- LOBBY --- */
@@ -32,25 +41,28 @@
         }
         .lobby-card {
             background: white; color: #333;
-            padding: 40px; border-radius: 20px;
+            padding: 30px; border-radius: 20px;
             width: 90%; max-width: 450px; text-align: center;
             box-shadow: 0 20px 50px black;
             border: 5px solid #fff;
         }
-        h1 { font-family: 'Titan One', cursive; font-size: 3.5rem; margin: 0; line-height: 1; color: #0f172a; }
+        h1 { font-family: 'Titan One', cursive; font-size: 3rem; margin: 0 0 10px 0; line-height: 1; color: #0f172a; }
         
-        .control-group { margin: 20px 0; text-align: left; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; font-size: 0.8rem; color: #666; }
+        .control-group { margin: 15px 0; text-align: left; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; font-size: 0.75rem; color: #666; letter-spacing: 1px; }
         input, select {
             width: 100%; padding: 12px;
-            border: 2px solid #ccc; border-radius: 8px;
+            border: 2px solid #cbd5e1; border-radius: 8px;
             font-size: 1.1rem; font-weight: bold; font-family: 'Chakra Petch', sans-serif;
+            outline: none;
         }
+        
+        .btn-row { display: flex; gap: 10px; margin-top: 20px; }
         button {
-            width: 100%; padding: 15px; font-size: 1.5rem;
+            width: 100%; padding: 15px; font-size: 1.3rem;
             font-family: 'Titan One', cursive;
             border: none; border-radius: 10px; cursor: pointer;
-            margin-top: 10px; transition: transform 0.1s;
+            transition: transform 0.1s;
         }
         button:active { transform: scale(0.95); }
         .btn-host { background: #3b82f6; color: white; }
@@ -61,9 +73,9 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            align-items: flex-start; /* Aligns items to top */
-            padding: 60px 20px;
-            gap: 50px; /* Space between players */
+            align-items: flex-start;
+            padding: 70px 10px;
+            gap: 40px;
             width: 100%;
             min-height: 100vh;
         }
@@ -76,40 +88,44 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            border: 8px solid #ccc;
+            border: 8px solid #333; /* Default, overridden by JS */
             box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-            /* Width is flexible but respects card size */
-            width: auto;
             position: relative;
-            transition: transform 0.3s ease;
+            transition: opacity 0.3s ease;
+            margin-bottom: 20px;
         }
         
-        /* HEADER POP-OUT */
+        .player-zone.opponent { transform: scale(0.95); opacity: 0.95; }
+        
+        /* HEADER */
         .player-header {
-            margin-top: -70px;
+            margin-top: -75px;
             display: flex; flex-direction: column; align-items: center;
             margin-bottom: 20px;
             z-index: 10;
         }
         .team-logo {
-            width: 110px; height: 110px;
+            width: 100px; height: 100px;
             background: white; border-radius: 50%;
-            border: 6px solid white; object-fit: contain;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border: 5px solid white; object-fit: contain;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            position: relative; z-index: 2;
         }
         .player-name {
-            font-family: 'Titan One', cursive; font-size: 2.5rem;
+            font-family: 'Titan One', cursive; font-size: 2rem;
             text-transform: uppercase;
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.4);
             color: white;
-            margin-top: -15px; /* Overlap logo slightly */
-            background: #333; padding: 5px 20px; border-radius: 30px;
-            border: 3px solid white;
+            margin-top: -20px;
+            padding: 8px 25px 5px 25px; 
+            border-radius: 30px;
+            border: 4px solid white;
             white-space: nowrap;
+            max-width: 320px; overflow: hidden; text-overflow: ellipsis;
+            position: relative; z-index: 1;
         }
 
         /* CARDS LAYOUT */
-        /* If multiple cards, they wrap inside the player zone */
         .cards-row {
             display: flex; 
             flex-wrap: wrap; 
@@ -119,60 +135,58 @@
         }
         
         .single-card-wrap {
-            width: var(--card-width); /* Fixed width to prevent squishing */
-            display: flex; flex-direction: column; gap: 10px;
-            flex-shrink: 0; /* Don't let flexbox shrink this */
+            width: var(--card-width);
+            display: flex; flex-direction: column; gap: 8px;
+            flex-shrink: 0;
         }
 
         .bingo-grid-container {
             background: #000;
             border-radius: 12px;
             overflow: hidden;
-            border: 2px solid #000;
+            border: 3px solid #000;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
         .card-label {
             text-align: center; padding: 8px;
-            font-weight: bold; color: white;
+            font-weight: 900; color: white;
             font-size: 1rem;
-            text-transform: uppercase; letter-spacing: 1px;
+            text-transform: uppercase; letter-spacing: 2px;
         }
 
         .grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 1px;
-            background: #999;
-            aspect-ratio: 1/1; /* Keeps it square */
+            gap: 2px;
+            background: #94a3b8;
+            aspect-ratio: 1/1;
         }
 
         .cell {
-            background: #f8fafc; color: #0f172a;
+            background: #f8fafc; color: #1e293b;
             display: flex; align-items: center; justify-content: center;
             text-align: center; 
-            font-size: 9px; /* Smaller font for fit */
+            font-size: 11px; /* Bigger font */
             padding: 2px;
             font-weight: 700; 
-            line-height: 1.2;
+            line-height: 1.1;
             user-select: none;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            hyphens: auto;
+            word-break: break-word;
         }
         
-        /* FREE SPACE */
         .cell.free {
-            background: #1e293b !important; color: white !important;
+            background: #1e293b !important; color: #fbbf24 !important;
             font-size: 12px; font-weight: 900;
             display: flex; flex-direction: column; justify-content: center;
         }
-        .cell.free span { font-size: 16px; display: block; }
+        .cell.free span { font-size: 18px; margin-top:2px; display: block; }
 
         /* STATES */
         .cell.marked {
-            background: #fbbf24 !important; /* Gold */
-            color: black !important;
+            background: #fbbf24 !important;
+            color: #000 !important;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
         }
         .cell.win {
             background: #ef4444 !important;
@@ -180,7 +194,7 @@
             animation: pulse 1s infinite;
         }
         
-        @keyframes pulse { 0%{opacity:1;} 50%{opacity:0.5;} 100%{opacity:1;} }
+        @keyframes pulse { 0%{opacity:1;} 50%{opacity:0.6;} 100%{opacity:1;} }
 
         /* CONTROLS */
         .is-me .cell:not(.free) { cursor: pointer; }
@@ -189,62 +203,88 @@
 
         .reroll-row {
             display: flex; justify-content: space-between; align-items: center;
-            background: #f1f5f9; padding: 8px 12px; border-radius: 8px;
-            color: #333; font-weight: bold; font-size: 0.9rem;
-            border: 1px solid #ccc;
+            background: #e2e8f0; padding: 8px 12px; border-radius: 8px;
+            color: #333; font-weight: bold; font-size: 1rem;
+            border: 2px solid #ccc;
         }
         .btn-reroll {
             background: #ef4444; color: white; border: none;
             padding: 6px 14px; border-radius: 6px; cursor: pointer;
             font-family: 'Titan One'; font-size: 0.9rem; text-transform: uppercase;
+            width: auto; margin: 0;
         }
-        .btn-reroll:disabled { background: #94a3b8; cursor: default; opacity: 0.7; }
+        .btn-reroll:disabled { background: #94a3b8; cursor: default; opacity: 0.6; }
 
-        /* FOOTER CONTROLS */
+        /* FOOTER */
         #footer-controls {
-            position: fixed; bottom: 20px; right: 20px;
-            background: white; padding: 10px 15px; border-radius: 30px;
+            position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
+            background: white; padding: 10px 25px; border-radius: 50px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            display: flex; gap: 10px; align-items: center; color: black; font-weight: bold;
+            display: flex; gap: 15px; align-items: center; 
+            width: 90%; max-width: 600px; justify-content: space-between;
             z-index: 1000;
         }
+        .footer-left { display: flex; align-items: center; gap: 10px; }
+        #room-label { color: #333; font-weight: 900; font-size: 1.2rem; }
+        .btn-footer { padding: 8px 16px; font-size: 0.9rem; border-radius: 20px; width: auto; margin: 0; }
+        #toggle-view-btn { background: #64748b; color: white; }
 
-        /* WINNER */
-        .player-zone.winner {
-            box-shadow: 0 0 60px #fbbf24;
-            border-color: #fbbf24;
-            z-index: 50;
-            transform: scale(1.02);
+        /* WINNER OVERLAY */
+        #winner-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #fff; padding: 40px; border-radius: 30px;
+            box-shadow: 0 0 100px rgba(251, 191, 36, 0.8);
+            text-align: center; z-index: 6000;
+            border: 10px solid #fbbf24;
+            display: none;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-
+        @keyframes popIn { from{transform:translate(-50%, -50%) scale(0.1);} to{transform:translate(-50%, -50%) scale(1);} }
+        
+        #winner-text {
+            font-family: 'Titan One'; font-size: 3rem; 
+            color: #0f172a; line-height: 1.2; margin: 20px 0;
+            text-transform: uppercase;
+        }
+        .winner-tag { color: #ef4444; font-size: 1.5rem; display:block; margin-bottom:10px; font-weight:bold; }
+        
         #celebration { position: fixed; inset: 0; pointer-events: none; z-index: 5000; overflow: hidden; }
         .football { position: absolute; font-size: 5rem; animation: spinFly 3s linear infinite; }
         @keyframes spinFly { from { transform: translate(-100px, 100vh) rotate(0deg); } to { transform: translate(120vw, -200px) rotate(720deg); } }
 
         .hidden { display: none !important; }
-        #error-banner { position: fixed; top:0; left:0; width:100%; background:red; color:white; text-align: center; padding: 10px; z-index: 10000; display: none; }
+        #error-banner { position: fixed; top:0; left:0; width:100%; background:red; color:white; text-align: center; padding: 10px; z-index: 10000; display: none; font-size: 0.8rem;}
+
+        .waiting-msg { width: 100%; text-align: center; margin-top: 100px; font-size: 1.5rem; opacity: 0.5; animation: pulse 2s infinite; }
     </style>
 </head>
 <body>
 
     <div id="error-banner"></div>
 
+    <div id="winner-modal">
+        <span class="winner-tag">BINGO!</span>
+        <div id="winner-text"></div>
+        <button onclick="document.getElementById('winner-modal').style.display='none'" style="background:#333; color:white; font-size:1rem; padding:10px;">CLOSE</button>
+    </div>
+
+    <!-- LOBBY -->
     <div id="lobby">
         <div class="lobby-card">
             <h1>NFL BEANO</h1>
-            <p style="color:#666; font-weight:bold; letter-spacing:1px;">v8.0 BIG CARD EDITION</p>
+            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.2 &bull; BIG CARDS</p>
 
             <div class="control-group">
-                <label>Player Name</label>
-                <input type="text" id="username" placeholder="NAME" maxlength="10">
+                <label>Your Name</label>
+                <input type="text" id="username" placeholder="ENTER NAME" maxlength="12">
             </div>
 
             <div class="control-group">
-                <label>Team Theme</label>
+                <label>Favorite Team</label>
                 <select id="lobby-team"></select>
             </div>
 
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:15px;">
                 <div class="control-group" style="flex:1">
                     <label>Cards</label>
                     <select id="card-count">
@@ -254,36 +294,37 @@
                     </select>
                 </div>
                 <div class="control-group" style="flex:2">
-                    <label>Room</label>
+                    <label>Room Code</label>
                     <input type="text" id="room-input" placeholder="CODE" style="text-transform:uppercase;">
                 </div>
             </div>
 
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-host" onclick="initGame(true)">HOST</button>
-                <button class="btn-join" onclick="initGame(false)">JOIN</button>
+            <div class="btn-row">
+                <button class="btn-host" onclick="initGame(true)">HOST GAME</button>
+                <button class="btn-join" onclick="initGame(false)">JOIN GAME</button>
             </div>
         </div>
     </div>
 
+    <!-- GAME BOARD -->
     <div id="game-board"></div>
 
+    <!-- CONTROLS -->
     <div id="footer-controls" class="hidden">
-        <span id="room-label"></span>
-        <select id="ingame-team" onchange="updateTeam()" style="padding:5px; border:1px solid #ccc; width:auto; font-size:0.8rem;"></select>
-        <button id="reset-btn" onclick="resetAll()" style="font-size:0.8rem; background:#ef4444; color:white; width:auto; padding:5px 10px; display:none;">RESET</button>
+        <div class="footer-left">
+            <span id="room-label"></span>
+            <select id="ingame-team" onchange="updateTeam()" style="padding:5px; border:1px solid #ccc; width:auto; font-size:0.8rem; height: 32px;"></select>
+        </div>
+        <div style="display:flex; gap:5px;">
+            <button id="toggle-view-btn" class="btn-footer" onclick="toggleFocusMode()">HIDE OTHERS</button>
+            <button id="reset-btn" class="btn-footer" onclick="resetAll()" style="background:#ef4444; color:white; display:none;">RESET</button>
+        </div>
     </div>
 
     <div id="celebration"></div>
 
 <script>
-    // Error Handling
-    window.onerror = function(msg) {
-        document.getElementById('error-banner').style.display = 'block';
-        document.getElementById('error-banner').innerText = "Error: " + msg;
-        return false;
-    };
-
+    // --- DATA ---
     const TEAMS = {
         "None": { c: "#333333", l: "nfl.svg" },
         "ARI": { c: "#97233F", l: "arizona-cardinals.svg" },
@@ -328,7 +369,7 @@
         "BLOCKED KICK", "PENALTY FLAG", "HOLDING", "FALSE START", "PASS INT", "DELAY OF GAME", "INT GROUNDING", 
         "ROUGHING PASSER", "FACE MASK", "TIMEOUT", "2-MIN WARNING", "CHALLENGE FLAG", "MEASUREMENT", "OVERTIME", 
         "INJURY", "COACH YELLING", "MASCOT", "BLIMP SHOT", "FACE PAINT", "SHIRTLESS FAN", "TRUCK AD", "BEER AD", 
-        "HELMET THROW", "CHEERLEADER", "CELEBRITY", "HURDLE", "JUKE", "ONE-HANDED CATCH"
+        "HELMET THROW", "CHEERLEADER", "CELEBRITY", "HURDLE", "JUKE", "ONE-HANDED CATCH", "SPIKE BALL", "DANCE"
     ];
 
     const WINS = [
@@ -337,26 +378,37 @@
         [0,6,12,18,24], [4,8,12,16,20]
     ];
 
-    // SETUP
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
     const TOPIC_PRE = 'nfl_beano_v8';
+
+    // --- STATE ---
     let client, myId = 'p' + Math.random().toString(36).substr(2,6);
     let myName, myTeam, roomCode, isHost;
+    let focusMode = false;
+    let currentWinnerName = null;
     let gameState = { players: {} };
 
-    // UI Fill
+    // --- INITIALIZATION ---
     const ls = document.getElementById('lobby-team');
     const is = document.getElementById('ingame-team');
     for(let t in TEAMS) {
-        if(t!=="None") {
+        if(t !== "None") {
             ls.innerHTML += `<option value="${t}">${t}</option>`;
             is.innerHTML += `<option value="${t}">${t}</option>`;
         }
     }
 
-    // LOGIC
+    window.onerror = function(msg) {
+        const b = document.getElementById('error-banner');
+        b.style.display = 'block';
+        b.innerText = "Error: " + msg;
+        setTimeout(() => b.style.display='none', 5000);
+        return false;
+    };
+
     function initGame(host) {
-        myName = document.getElementById('username').value.trim() || (host?"HOST":"GUEST");
+        const nameInput = document.getElementById('username').value.trim();
+        myName = nameInput || (host?"HOST":"GUEST");
         myTeam = ls.value;
         isHost = host;
         
@@ -373,14 +425,15 @@
 
         document.getElementById('lobby').classList.add('hidden');
         document.getElementById('footer-controls').classList.remove('hidden');
-        document.getElementById('room-label').innerText = "ROOM: " + roomCode;
+        document.getElementById('room-label').innerText = roomCode;
         if(host) document.getElementById('reset-btn').style.display = 'block';
         document.getElementById('ingame-team').value = myTeam;
         
-        render();
+        render(); 
         connectMQTT();
     }
 
+    // --- LOGIC ---
     function createPlayerData(name, team, count) {
         let p = { name: name, team: team, cards: [] };
         for(let i=0; i<count; i++) p.cards.push(newCard());
@@ -397,9 +450,15 @@
         myTeam = document.getElementById('ingame-team').value;
         if(gameState.players[myId]) {
             gameState.players[myId].team = myTeam;
-            render();
             send({ type:'UPDATE_TEAM', team: myTeam });
+            render();
         }
+    }
+
+    function toggleFocusMode() {
+        focusMode = !focusMode;
+        document.getElementById('toggle-view-btn').innerText = focusMode ? "SHOW OTHERS" : "HIDE OTHERS";
+        render();
     }
 
     function checkWin(c) {
@@ -412,7 +471,7 @@
         let p = gameState.players[myId];
         let c = p.cards[cIdx];
         if(c.rerolls > 0) {
-            if(confirm("Use Reroll?")) {
+            if(confirm("Use 1 Reroll?")) {
                 c.rerolls--;
                 let nc = newCard();
                 c.events = nc.events;
@@ -424,33 +483,34 @@
         }
     }
 
-    // RENDER
+    // --- RENDER ---
     function render() {
         const board = document.getElementById('game-board');
         const pIds = Object.keys(gameState.players);
-
         pIds.sort((a,b) => (a===myId ? -1 : 1));
 
-        // Background Logic
-        if(pIds.length <= 1) {
-            document.body.style.backgroundColor = (TEAMS[myTeam] ? TEAMS[myTeam].c : "#0f172a");
-        } else {
-            document.body.style.backgroundColor = "#0f172a";
+        if(gameState.players[myId]) {
+            const t = TEAMS[gameState.players[myId].team];
+            document.body.style.backgroundColor = t ? t.c : "#0f172a";
         }
 
         if(pIds.length === 0) {
-            board.innerHTML = "<h1>CONNECTING...</h1>";
+            board.innerHTML = "<div class='waiting-msg'>CONNECTING...</div>";
             return;
         }
 
         let html = "";
-
         pIds.forEach(pid => {
-            const p = gameState.players[pid];
             const isMe = (pid === myId);
-            const tm = TEAMS[p.team] || TEAMS["None"];
-            const isWinner = p.cards.some(c => c.winLine.length > 0);
+            if(focusMode && !isMe) return;
 
+            const p = gameState.players[pid];
+            const tData = TEAMS[p.team] || TEAMS["None"];
+            const teamColor = tData.c;
+            const logoFile = tData.l;
+            
+            const isWinner = p.cards.some(c => c.winLine.length > 0);
+            
             let cardsHtml = "";
             p.cards.forEach((c, cIdx) => {
                 let cellsHtml = "";
@@ -461,37 +521,35 @@
                     if(c.winLine.includes(idx)) classes += " win";
                     
                     let clickAttr = isMe ? `onclick="cellClick('${pid}', ${cIdx}, ${idx})"` : "";
-                    
                     cellsHtml += `<div class="${classes}" ${clickAttr}>${idx===12 ? 'FREE<br><span>🏈</span>' : evt}</div>`;
                 });
 
-                let rrHtml = "";
+                // Rerolls visible for everyone, button only for me
+                let rrBtn = "";
                 if(isMe) {
                     let dis = c.rerolls <= 0 ? "disabled" : "";
-                    rrHtml = `
-                        <div class="reroll-row">
-                            <span>Left: ${c.rerolls}</span>
-                            <button class="btn-reroll" ${dis} onclick="reroll('${pid}', ${cIdx})">REROLL</button>
-                        </div>
-                    `;
+                    rrBtn = `<button class="btn-reroll" ${dis} onclick="reroll('${pid}', ${cIdx})">USE</button>`;
                 }
 
                 cardsHtml += `
                     <div class="single-card-wrap">
-                        <div class="bingo-grid-container" style="border-color:${isWinner?'#fbbf24':'white'}">
-                            <div class="card-label" style="background:${tm.c}">CARD ${cIdx+1}</div>
+                        <div class="bingo-grid-container" style="border-color:${teamColor}">
+                            <div class="card-label" style="background:${teamColor}">CARD ${cIdx+1}</div>
                             <div class="grid">${cellsHtml}</div>
                         </div>
-                        ${rrHtml}
+                        <div class="reroll-row" style="border-color:${teamColor}">
+                            <span>REROLLS: ${c.rerolls}</span>
+                            ${rrBtn}
+                        </div>
                     </div>
                 `;
             });
 
             html += `
-                <div class="player-zone ${isWinner ? 'winner' : ''}" style="border-color:${tm.c}">
+                <div class="player-zone ${isWinner ? 'winner' : ''} ${!isMe ? 'opponent' : 'is-me'}" style="border-color:${teamColor}">
                     <div class="player-header">
-                        <img class="team-logo" src="logos/${tm.l}" onerror="this.style.display='none'">
-                        <div class="player-name">${p.name}</div>
+                        <img class="team-logo" src="logos/${logoFile}" style="border-color:${teamColor}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzMzMyIvPjwvc3ZnPg=='">
+                        <div class="player-name" style="background:${teamColor}">${p.name}</div>
                     </div>
                     <div class="cards-row">
                         ${cardsHtml}
@@ -512,15 +570,15 @@
         if(c.marked.includes(cellIdx)) c.marked = c.marked.filter(x => x!==cellIdx);
         else c.marked.push(cellIdx);
         
-        let w = checkWin(c);
-        c.winLine = w;
-        if(w.length > 0) celebrate();
-
+        // Optimistic UI Update
+        c.winLine = checkWin(c);
+        if(c.winLine.length > 0) announceWin(p.name);
+        
         render();
         send({ type: 'UPDATE', pData: p });
     };
 
-    // NETWORK
+    // --- NETWORK ---
     function connectMQTT() {
         client = mqtt.connect(BROKER);
         const t = `${TOPIC_PRE}/${roomCode}`;
@@ -528,7 +586,7 @@
         client.on('connect', () => {
             client.subscribe(t);
             if(isHost) {
-                setInterval(() => send({ type: 'STATE', state: gameState }), 1000);
+                setInterval(() => send({ type: 'STATE', state: gameState }), 2000);
             } else {
                 const cnt = parseInt(document.getElementById('card-count').value);
                 let iv = setInterval(() => {
@@ -547,38 +605,76 @@
                     if(msg.type === 'JOIN' && !gameState.players[msg.sender]) {
                         gameState.players[msg.sender] = createPlayerData(msg.name, msg.team, msg.count);
                         render();
+                        send({ type: 'STATE', state: gameState });
                     }
                     if(msg.type === 'UPDATE') {
+                        // Trust the sender's update (including win status)
                         gameState.players[msg.sender] = msg.pData;
-                        if(msg.pData.cards.some(c=>c.winLine.length>0)) celebrate();
+                        checkForWins();
                         render();
+                        // Host immediately broadcasts state to ensure everyone sees the update
+                        send({ type: 'STATE', state: gameState });
                     }
-                    if(msg.type === 'UPDATE_TEAM' && gameState.players[msg.sender]) {
-                        gameState.players[msg.sender].team = msg.team;
-                        render();
-                    }
-                } else {
-                    if(msg.type === 'STATE') {
-                        let local = gameState.players[myId];
-                        gameState = msg.state;
-                        if(local) gameState.players[myId] = local;
-                        
-                        let winFound = false;
-                        Object.values(gameState.players).forEach(p => {
-                            if(p.cards.some(c => c.winLine.length > 0)) winFound = true;
-                        });
-                        if(winFound && !window.hasCeleb) {
-                            celebrate();
-                            window.hasCeleb = true;
+                    if(msg.type === 'UPDATE_TEAM') {
+                        if(gameState.players[msg.sender]) {
+                            gameState.players[msg.sender].team = msg.team;
+                            render();
                         }
-                        render();
+                    }
+                } 
+                else {
+                    if(msg.type === 'STATE') {
+                        handleServerState(msg.state);
                     }
                 }
             } catch(e) { console.log(e); }
         });
     }
 
-    function send(pl) { pl.sender = myId; client.publish(`${TOPIC_PRE}/${roomCode}`, JSON.stringify(pl)); }
+    function handleServerState(serverState) {
+        const localMe = gameState.players[myId];
+        const serverMe = serverState.players[myId];
+
+        gameState = serverState; 
+        
+        // Prevent ghost clicks
+        if(localMe && serverMe) {
+            const sameGame = JSON.stringify(localMe.cards.map(c=>c.events)) === JSON.stringify(serverMe.cards.map(c=>c.events));
+            if(sameGame) gameState.players[myId] = localMe;
+            else gameState.players[myId] = serverMe;
+        }
+
+        checkForWins();
+        render();
+    }
+
+    function checkForWins() {
+        let winnerFound = null;
+        Object.values(gameState.players).forEach(p => {
+            if(p.cards.some(c => c.winLine.length > 0)) {
+                winnerFound = p.name;
+            }
+        });
+
+        // Trigger animation if we haven't seen this winner yet
+        if(winnerFound && currentWinnerName !== winnerFound) {
+            announceWin(winnerFound);
+        } else if (!winnerFound) {
+            currentWinnerName = null; // Reset if game reset
+        }
+    }
+
+    function announceWin(name) {
+        currentWinnerName = name;
+        document.getElementById('winner-text').innerText = name + " WINS!";
+        document.getElementById('winner-modal').style.display = 'block';
+        celebrate();
+    }
+
+    function send(pl) { 
+        pl.sender = myId; 
+        if(client && client.connected) client.publish(`${TOPIC_PRE}/${roomCode}`, JSON.stringify(pl)); 
+    }
 
     function resetAll() {
         if(!isHost) return;
@@ -587,18 +683,23 @@
                 let p = gameState.players[pid];
                 gameState.players[pid] = createPlayerData(p.name, p.team, p.cards.length);
             });
-            window.hasCeleb = false;
+            currentWinnerName = null;
+            document.getElementById('winner-modal').style.display = 'none';
             render();
+            send({ type: 'STATE', state: gameState });
         }
     }
 
     function celebrate() {
         const b = document.getElementById('celebration');
-        for(let i=0; i<20; i++){
+        if(b.childElementCount > 5) return;
+        for(let i=0; i<30; i++){
             let f = document.createElement('div'); f.className='football'; f.innerHTML='🏈';
-            f.style.left='-100px'; f.style.top=Math.random()*80+'vh';
+            f.style.left = (Math.random() * 100) + 'vw';
             f.style.animationDuration=(Math.random()*2+2)+'s';
-            b.appendChild(f); setTimeout(()=>f.remove(), 4000);
+            f.style.fontSize = (Math.random()*4+2) + 'rem';
+            b.appendChild(f); 
+            setTimeout(()=>f.remove(), 4000);
         }
     }
 
