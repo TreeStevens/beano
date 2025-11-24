@@ -525,4 +525,285 @@
     // Only Host calls this
     function scheduleNextTrivia() {
         if(!isHost) return;
-        //
+        // Random time between 3 minutes (180000) and 6 minutes (360000)
+        let delay = Math.floor(Math.random() * (360000 - 180000 + 1) + 180000);
+        console.log("Next Trivia in: " + (delay/1000) + "s");
+        
+        if(triviaTimeout) clearTimeout(triviaTimeout);
+        triviaTimeout = setTimeout(() => {
+            // Pick question
+            let qIdx = Math.floor(Math.random() * TRIVIA_DB.length);
+            send({ type: 'TRIVIA_START', qIdx: qIdx });
+            scheduleNextTrivia(); // Schedule next one
+        }, delay);
+    }
+
+    function launchTrivia(qIdx) {
+        const q = TRIVIA_DB[qIdx];
+        const box = document.getElementById('trivia-box');
+        const qt = document.getElementById('t-question');
+        const opts = document.getElementById('t-options');
+        const stat = document.getElementById('t-status');
+        
+        qt.innerText = q.q;
+        opts.innerHTML = "";
+        stat.innerText = "";
+        
+        q.o.forEach((opt, idx) => {
+            let b = document.createElement('button');
+            b.className = 't-btn';
+            b.innerText = opt;
+            b.onclick = () => {
+                // Disable all buttons
+                Array.from(opts.children).forEach(btn => btn.disabled = true);
+                if(idx === q.a) {
+                    b.classList.add('correct');
+                    stat.innerText = "CORRECT! Sending...";
+                    send({ type: 'TRIVIA_WIN' });
+                } else {
+                    b.classList.add('wrong');
+                    stat.innerText = "WRONG! Better luck next time.";
+                }
+            };
+            opts.appendChild(b);
+        });
+
+        box.classList.add('active');
+        
+        // Auto hide after 20s if no one wins
+        setTimeout(() => box.classList.remove('active'), 20000);
+    }
+
+    function closeTrivia(winnerName) {
+        const box = document.getElementById('trivia-box');
+        const stat = document.getElementById('t-status');
+        stat.innerText = winnerName + " WON!";
+        setTimeout(() => box.classList.remove('active'), 2000);
+    }
+
+    // --- RENDER ---
+    function render() {
+        const board = document.getElementById('game-board');
+        const pIds = Object.keys(gameState.players);
+        pIds.sort((a,b) => (a===myId ? -1 : 1));
+
+        if(gameState.players[myId]) {
+            const t = TEAMS[gameState.players[myId].team];
+            document.body.style.backgroundColor = t ? t.c : "#0f172a";
+        }
+
+        if(pIds.length === 0) {
+            board.innerHTML = "<div class='waiting-msg'>CONNECTING...</div>";
+            return;
+        }
+
+        let html = "";
+        pIds.forEach(pid => {
+            const isMe = (pid === myId);
+            if(focusMode && !isMe) return;
+
+            const p = gameState.players[pid];
+            const tData = TEAMS[p.team] || TEAMS["None"];
+            const teamColor = tData.c;
+            const logoFile = tData.l;
+            const tScore = gameState.triviaScores[pid] || 0;
+            const isWinner = p.cards.some(c => c.winLine.length > 0);
+            
+            let cardsHtml = "";
+            p.cards.forEach((c, cIdx) => {
+                let cellsHtml = "";
+                c.events.forEach((evt, idx) => {
+                    let classes = "cell";
+                    if(idx===12) classes += " free";
+                    if(c.marked.includes(idx)) classes += " marked";
+                    if(c.winLine.includes(idx)) classes += " win";
+                    
+                    let clickAttr = isMe ? `onclick="cellClick('${pid}', ${cIdx}, ${idx})"` : "";
+                    cellsHtml += `<div class="${classes}" ${clickAttr}>${idx===12 ? 'FREE<br><span>🏈</span>' : evt}</div>`;
+                });
+
+                let rrBtn = "";
+                if(isMe) {
+                    let dis = c.rerolls <= 0 ? "disabled" : "";
+                    rrBtn = `<button class="btn-reroll" ${dis} onclick="reroll('${pid}', ${cIdx})">USE</button>`;
+                }
+
+                cardsHtml += `
+                    <div class="single-card-wrap">
+                        <div class="bingo-grid-container" style="border-color:${teamColor}">
+                            <div class="card-label" style="background:${teamColor}">CARD ${cIdx+1}</div>
+                            <div class="grid">${cellsHtml}</div>
+                        </div>
+                        <div class="reroll-row" style="border-color:${teamColor}">
+                            <span>REROLLS: ${c.rerolls}</span>
+                            ${rrBtn}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                <div class="player-zone ${isWinner ? 'winner' : ''} ${!isMe ? 'opponent' : 'is-me'}" style="border-color:${teamColor}">
+                    <div class="player-header">
+                        <img class="team-logo" src="logos/${logoFile}" style="border-color:${teamColor}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzMzMyIvPjwvc3ZnPg=='">
+                        <div class="player-name-wrap">
+                            <div class="player-name" style="background:${teamColor}">${p.name}</div>
+                            <div class="trivia-badge">★ ${tScore}</div>
+                        </div>
+                    </div>
+                    <div class="cards-row">
+                        ${cardsHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        board.innerHTML = html;
+    }
+
+    window.cellClick = function(pId, cIdx, cellIdx) {
+        if(pId !== myId || cellIdx === 12) return;
+        
+        let p = gameState.players[myId];
+        let c = p.cards[cIdx];
+        
+        if(c.marked.includes(cellIdx)) c.marked = c.marked.filter(x => x!==cellIdx);
+        else c.marked.push(cellIdx);
+        
+        c.winLine = checkWin(c);
+        if(c.winLine.length > 0) announceWin(p.name);
+        
+        render();
+        send({ type: 'UPDATE', pData: p });
+    };
+
+    // --- NETWORK ---
+    function connectMQTT() {
+        client = mqtt.connect(BROKER);
+        const t = `${TOPIC_PRE}/${roomCode}`;
+        
+        client.on('connect', () => {
+            client.subscribe(t);
+            if(isHost) {
+                setInterval(() => send({ type: 'STATE', state: gameState }), 2000);
+            } else {
+                const cnt = parseInt(document.getElementById('card-count').value);
+                let iv = setInterval(() => {
+                    if(gameState.players[myId]) clearInterval(iv);
+                    else send({ type: 'JOIN', name: myName, team: myTeam, count: cnt });
+                }, 1500);
+            }
+        });
+
+        client.on('message', (tpc, m) => {
+            try {
+                const msg = JSON.parse(m.toString());
+                if(msg.sender === myId) return;
+
+                if(msg.type === 'TRIVIA_START') {
+                    launchTrivia(msg.qIdx);
+                }
+                
+                if(isHost) {
+                    if(msg.type === 'JOIN' && !gameState.players[msg.sender]) {
+                        gameState.players[msg.sender] = createPlayerData(msg.name, msg.team, msg.count);
+                        render();
+                        send({ type: 'STATE', state: gameState });
+                    }
+                    if(msg.type === 'UPDATE') {
+                        gameState.players[msg.sender] = msg.pData;
+                        checkForWins();
+                        render();
+                        send({ type: 'STATE', state: gameState });
+                    }
+                    if(msg.type === 'TRIVIA_WIN') {
+                        // First one to reach host gets point
+                        if(!gameState.triviaScores[msg.sender]) gameState.triviaScores[msg.sender] = 0;
+                        gameState.triviaScores[msg.sender]++;
+                        send({ type: 'TRIVIA_RESULT', winnerName: gameState.players[msg.sender].name });
+                        render();
+                    }
+                    if(msg.type === 'UPDATE_TEAM') {
+                        if(gameState.players[msg.sender]) {
+                            gameState.players[msg.sender].team = msg.team;
+                            render();
+                        }
+                    }
+                } 
+                else {
+                    if(msg.type === 'STATE') {
+                        handleServerState(msg.state);
+                    }
+                    if(msg.type === 'TRIVIA_RESULT') {
+                        closeTrivia(msg.winnerName);
+                    }
+                }
+            } catch(e) { console.log(e); }
+        });
+    }
+
+    function handleServerState(serverState) {
+        const localMe = gameState.players[myId];
+        const serverMe = serverState.players[myId];
+        gameState = serverState; 
+        if(localMe && serverMe) {
+            const sameGame = JSON.stringify(localMe.cards.map(c=>c.events)) === JSON.stringify(serverMe.cards.map(c=>c.events));
+            if(sameGame) gameState.players[myId] = localMe;
+            else gameState.players[myId] = serverMe;
+        }
+        checkForWins();
+        render();
+    }
+
+    function checkForWins() {
+        let winnerFound = null;
+        Object.values(gameState.players).forEach(p => {
+            if(p.cards.some(c => c.winLine.length > 0)) {
+                winnerFound = p.name;
+            }
+        });
+        if(winnerFound && currentWinnerName !== winnerFound) announceWin(winnerFound);
+        else if (!winnerFound) currentWinnerName = null;
+    }
+
+    function announceWin(name) {
+        currentWinnerName = name;
+        document.getElementById('winner-text').innerText = name + " WINS!";
+        document.getElementById('winner-modal').style.display = 'block';
+        celebrate();
+    }
+
+    function send(pl) { 
+        pl.sender = myId; 
+        if(client && client.connected) client.publish(`${TOPIC_PRE}/${roomCode}`, JSON.stringify(pl)); 
+    }
+
+    function resetAll() {
+        if(!isHost) return;
+        if(confirm("New Cards for Everyone?")) {
+            Object.keys(gameState.players).forEach(pid => {
+                let p = gameState.players[pid];
+                gameState.players[pid] = createPlayerData(p.name, p.team, p.cards.length);
+            });
+            currentWinnerName = null;
+            document.getElementById('winner-modal').style.display = 'none';
+            render();
+            send({ type: 'STATE', state: gameState });
+        }
+    }
+
+    function celebrate() {
+        const b = document.getElementById('celebration');
+        if(b.childElementCount > 5) return;
+        for(let i=0; i<30; i++){
+            let f = document.createElement('div'); f.className='football'; f.innerHTML='🏈';
+            f.style.left = (Math.random() * 100) + 'vw';
+            f.style.animationDuration=(Math.random()*2+2)+'s';
+            f.style.fontSize = (Math.random()*4+2) + 'rem';
+            b.appendChild(f); 
+            setTimeout(()=>f.remove(), 4000);
+        }
+    }
+</script>
+</body>
+</html>
