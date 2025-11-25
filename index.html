@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <!-- 
-    NFL BEANO v8.7
-    - RESTORED: Original Event Text (No changes to wording)
-    - LOGIC: Tiered Ratios (Common/Uncommon/Rare) applied to your list
-    - UI: Adjusted font sizing to fit longer phrases
+    NFL BEANO v8.8
+    - FIXED: Host now sees the Trivia Question (Local Trigger)
+    - FIXED: Host now sees the Trivia Winner notification
+    - DATA: Preserved original Event List & Ratios
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v8.7</title>
+    <title>NFL BEANO v8.8</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Titan+One&display=swap" rel="stylesheet">
 
@@ -149,13 +149,13 @@
             background: #f8fafc; color: #1e293b; 
             display: flex; align-items: center; justify-content: center; 
             text-align: center; 
-            font-size: 8px; /* Slightly smaller for long text */
+            font-size: 8px; 
             padding: 2px;
             font-weight: 700; 
             line-height: 1.1; 
             user-select: none; 
             word-wrap: break-word; 
-            word-break: break-word; /* Forces wrap on long words */
+            word-break: break-word;
             hyphens: auto; 
         }
         
@@ -213,7 +213,7 @@
             position: fixed; top: -300px; left: 50%; transform: translateX(-50%);
             width: 90%; max-width: 500px;
             background: #fff;
-            color: #333 !important; /* Force Black Text */
+            color: #333 !important; 
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             border-radius: 0 0 20px 20px;
             border: 5px solid #3b82f6; border-top: none;
@@ -282,7 +282,7 @@
     <div id="lobby">
         <div class="lobby-card">
             <h1>NFL BEANO</h1>
-            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.7 &bull; CLASSIC TEXT</p>
+            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.8 &bull; HOST TRIVIA FIX</p>
 
             <div class="control-group">
                 <label>Your Name</label>
@@ -442,7 +442,7 @@
     ];
 
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC_PRE = 'nfl_beano_v8_7';
+    const TOPIC_PRE = 'nfl_beano_v8_8';
 
     // --- STATE ---
     let client, myId = 'p' + Math.random().toString(36).substr(2,6);
@@ -602,9 +602,14 @@
         if(triviaTimeout) clearTimeout(triviaTimeout);
         triviaTimeout = setTimeout(() => {
             let qIdx = Math.floor(Math.random() * TRIVIA_DB.length);
-            // HOST SENDS FULL QUESTION DATA NOW to ensure everyone sees it, even if DB is mismatched
+            
+            // 1. Host Launches Locally (The Fix for Host Visibility)
             let qData = TRIVIA_DB[qIdx];
+            launchTrivia(qData);
+            
+            // 2. Host Sends to Network
             send({ type: 'TRIVIA_START', qData: qData });
+            
             scheduleNextTrivia(); 
         }, delay);
     }
@@ -787,7 +792,12 @@
                     if(msg.type === 'TRIVIA_WIN') {
                         if(!gameState.triviaScores[msg.sender]) gameState.triviaScores[msg.sender] = 0;
                         gameState.triviaScores[msg.sender]++;
-                        send({ type: 'TRIVIA_RESULT', winnerName: gameState.players[msg.sender].name });
+                        
+                        // HOST UPDATE
+                        let winnerName = gameState.players[msg.sender].name;
+                        closeTrivia(winnerName);
+
+                        send({ type: 'TRIVIA_RESULT', winnerName: winnerName });
                         render();
                     }
                     if(msg.type === 'UPDATE_TEAM') {
