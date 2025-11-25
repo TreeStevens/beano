@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <!-- 
-    NFL BEANO v8.5
-    - Fixed Blurry Footer Text (Font Change)
-    - Alphabetical Team Sorting
-    - Host Controlled Trivia Timer (Test Mode added)
+    NFL BEANO v8.7
+    - RESTORED: Original Event Text (No changes to wording)
+    - LOGIC: Tiered Ratios (Common/Uncommon/Rare) applied to your list
+    - UI: Adjusted font sizing to fit longer phrases
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v8.5</title>
+    <title>NFL BEANO v8.7</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Titan+One&display=swap" rel="stylesheet">
 
@@ -144,7 +144,20 @@
         }
         .card-label { text-align: center; padding: 8px; font-weight: 900; color: white; font-size: 1rem; text-transform: uppercase; letter-spacing: 2px; }
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; background: #94a3b8; aspect-ratio: 1/1; }
-        .cell { background: #f8fafc; color: #1e293b; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; padding: 2px; font-weight: 700; line-height: 1.1; user-select: none; word-break: break-word; }
+        
+        .cell { 
+            background: #f8fafc; color: #1e293b; 
+            display: flex; align-items: center; justify-content: center; 
+            text-align: center; 
+            font-size: 8px; /* Slightly smaller for long text */
+            padding: 2px;
+            font-weight: 700; 
+            line-height: 1.1; 
+            user-select: none; 
+            word-wrap: break-word; 
+            word-break: break-word; /* Forces wrap on long words */
+            hyphens: auto; 
+        }
         
         .cell.free { background: #1e293b !important; color: #fbbf24 !important; font-size: 12px; font-weight: 900; display: flex; flex-direction: column; justify-content: center; }
         .cell.free span { font-size: 18px; margin-top:2px; display: block; }
@@ -169,7 +182,6 @@
         .footer-left { display: flex; align-items: center; gap: 10px; }
         #room-label { color: #333; font-weight: 900; font-size: 1.2rem; font-family: 'Chakra Petch', sans-serif; }
         
-        /* FOOTER BUTTON FIX - Using clean font to prevent blur */
         .btn-footer { 
             padding: 8px 16px; 
             font-size: 1rem; 
@@ -179,9 +191,9 @@
             background: #64748b; 
             color: white; 
             border: none; 
-            font-weight: 800; /* Bold */
-            font-family: 'Chakra Petch', sans-serif; /* Cleaner font */
-            text-shadow: none; /* Removes blur cause */
+            font-weight: 800;
+            font-family: 'Chakra Petch', sans-serif;
+            text-shadow: none;
             cursor: pointer;
         }
         
@@ -198,9 +210,10 @@
 
         /* TRIVIA */
         #trivia-box {
-            position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
+            position: fixed; top: -300px; left: 50%; transform: translateX(-50%);
             width: 90%; max-width: 500px;
             background: #fff;
+            color: #333 !important; /* Force Black Text */
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             border-radius: 0 0 20px 20px;
             border: 5px solid #3b82f6; border-top: none;
@@ -209,9 +222,9 @@
             text-align: center;
         }
         #trivia-box.active { top: 0; }
-        .trivia-q { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; }
+        .trivia-q { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #0f172a; } 
         .trivia-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .t-btn { background: #f1f5f9; border: 2px solid #cbd5e1; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .t-btn { background: #f1f5f9; color: #333; border: 2px solid #cbd5e1; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
         .t-btn:hover { background: #e2e8f0; }
         .t-btn.correct { background: #10b981; color: white; border-color: #10b981; }
         .t-btn.wrong { background: #ef4444; color: white; border-color: #ef4444; opacity: 0.5; }
@@ -269,7 +282,7 @@
     <div id="lobby">
         <div class="lobby-card">
             <h1>NFL BEANO</h1>
-            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.5 &bull; TRIVIA EDITION</p>
+            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.7 &bull; CLASSIC TEXT</p>
 
             <div class="control-group">
                 <label>Your Name</label>
@@ -334,19 +347,37 @@
 <script>
     // --- DATA & CONFIG ---
     
-    // 3 Tiers for card generation
+    // RESTORED ORIGINAL LIST - MAPPED TO TIERS
     const TIERS = {
         common: {
             label: "COMMON (12 per card)", color: "#10b981",
-            items: ["TOUCHDOWN", "FIELD GOAL", "FIRST DOWN", "PUNT", "TIMEOUT", "FLAG THROWN", "SACK", "INCOMPLETE", "RUN > 5 YDS", "PASS > 10 YDS", "KICKOFF", "COMMERCIAL", "REPLAY", "3RD DOWN CONV", "FAIR CATCH", "QB SLIDE", "HUG", "HIGH FIVE"]
+            items: [
+                "TOUCHDOWN", "FIELD GOAL", "FIRST DOWN", "PASS > 20 YDS", 
+                "RUN > 10 YDS", "3RD & LONG", "PLAY ACTION", "SHOTGUN", 
+                "SACK", "PASS DEFENDED", "THROWN AWAY", "3-AND-OUT", 
+                "PENALTY FLAG", "HOLDING", "FALSE START", "TIMEOUT", 
+                "2-MIN WARNING", "INJURY"
+            ]
         },
         uncommon: {
             label: "UNCOMMON (8 per card)", color: "#f59e0b",
-            items: ["INTERCEPTION", "FUMBLE", "CHALLENGE", "4TH DOWN TRY", "MISSED FG", "BLOCKED KICK", "DEFENSIVE TD", "SAFETY", "2-PT CONV", "MEASUREMENT", "INJURY TIME", "FALSE START", "HOLDING", "DELAY OF GAME", "PASS INT", "OFFSIDES"]
+            items: [
+                "2-PT CONV", "QB SCRAMBLE", "4TH DOWN TRY", "SCREEN > 10", 
+                "QB SNEAK", "EMPTY BACKFIELD", "TFL", "TIPPED PASS", 
+                "INTERCEPTION", "FUMBLE", "TURNOVER", "GOAL LINE STAND", 
+                "RED ZONE STOP", "PASS INT", "DELAY OF GAME", "INT GROUNDING", 
+                "ROUGHING PASSER", "FACE MASK", "CHALLENGE FLAG", "MEASUREMENT"
+            ]
         },
         rare: {
             label: "RARE (4 per card)", color: "#ef4444",
-            items: ["SHIRTLESS FAN", "MASCOT ON TV", "COACH YELLING", "HELMET OFF", "TRICK PLAY", "BIG HIT", "SNOW/RAIN", "CELEBRITY", "SIGN SHOWN", "SPIKE BALL", "DANCE", "FG DOINK", "CHAIN GANG", "FACE PAINT"]
+            items: [
+                "HAIL MARY", "TRICK PLAY", "FAKE PUNT", "DEFENSIVE TD", 
+                "BLOCKED KICK", "OVERTIME", "COACH YELLING", "MASCOT", 
+                "BLIMP SHOT", "FACE PAINT", "SHIRTLESS FAN", "TRUCK AD", 
+                "BEER AD", "HELMET THROW", "CHEERLEADER", "CELEBRITY", 
+                "HURDLE", "JUKE", "ONE-HANDED CATCH"
+            ]
         }
     };
 
@@ -411,7 +442,7 @@
     ];
 
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC_PRE = 'nfl_beano_v8_5';
+    const TOPIC_PRE = 'nfl_beano_v8_7';
 
     // --- STATE ---
     let client, myId = 'p' + Math.random().toString(36).substr(2,6);
@@ -571,29 +602,30 @@
         if(triviaTimeout) clearTimeout(triviaTimeout);
         triviaTimeout = setTimeout(() => {
             let qIdx = Math.floor(Math.random() * TRIVIA_DB.length);
-            send({ type: 'TRIVIA_START', qIdx: qIdx });
+            // HOST SENDS FULL QUESTION DATA NOW to ensure everyone sees it, even if DB is mismatched
+            let qData = TRIVIA_DB[qIdx];
+            send({ type: 'TRIVIA_START', qData: qData });
             scheduleNextTrivia(); 
         }, delay);
     }
 
-    function launchTrivia(qIdx) {
-        const q = TRIVIA_DB[qIdx];
+    function launchTrivia(qData) {
         const box = document.getElementById('trivia-box');
         const qt = document.getElementById('t-question');
         const opts = document.getElementById('t-options');
         const stat = document.getElementById('t-status');
         
-        qt.innerText = q.q;
+        qt.innerText = qData.q;
         opts.innerHTML = "";
         stat.innerText = "";
         
-        q.o.forEach((opt, idx) => {
+        qData.o.forEach((opt, idx) => {
             let b = document.createElement('button');
             b.className = 't-btn';
             b.innerText = opt;
             b.onclick = () => {
                 Array.from(opts.children).forEach(btn => btn.disabled = true);
-                if(idx === q.a) {
+                if(idx === qData.a) {
                     b.classList.add('correct');
                     stat.innerText = "CORRECT! Sending...";
                     send({ type: 'TRIVIA_WIN' });
@@ -605,7 +637,7 @@
             opts.appendChild(b);
         });
         box.classList.add('active');
-        setTimeout(() => box.classList.remove('active'), 20000);
+        setTimeout(() => box.classList.remove('active'), 25000); // 25s window
     }
 
     function closeTrivia(winnerName) {
@@ -734,7 +766,11 @@
                 const msg = JSON.parse(m.toString());
                 if(msg.sender === myId) return;
 
-                if(msg.type === 'TRIVIA_START') launchTrivia(msg.qIdx);
+                // Handle Trivia Start with FULL DATA
+                if(msg.type === 'TRIVIA_START') {
+                    // Check if we already received this payload to avoid double launch (though safe to relaunch)
+                    launchTrivia(msg.qData);
+                }
                 
                 if(isHost) {
                     if(msg.type === 'JOIN' && !gameState.players[msg.sender]) {
