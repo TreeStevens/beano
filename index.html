@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <!-- 
-    NFL BEANO v8.8
-    - FIXED: Host now sees the Trivia Question (Local Trigger)
-    - FIXED: Host now sees the Trivia Winner notification
-    - DATA: Preserved original Event List & Ratios
+    NFL BEANO v8.9
+    - FIXED: Host Trivia Win Logic (Local handling)
+    - UPDATED: Trivia timer reduced to 10 seconds
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NFL BEANO v8.8</title>
+    <title>NFL BEANO v8.9</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Titan+One&display=swap" rel="stylesheet">
 
@@ -282,7 +281,7 @@
     <div id="lobby">
         <div class="lobby-card">
             <h1>NFL BEANO</h1>
-            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.8 &bull; HOST TRIVIA FIX</p>
+            <p style="color:#94a3b8; font-weight:bold; font-size: 0.8rem; margin-bottom: 20px;">VERSION 8.9 &bull; HOST FIX</p>
 
             <div class="control-group">
                 <label>Your Name</label>
@@ -442,7 +441,7 @@
     ];
 
     const BROKER = 'wss://broker.emqx.io:8084/mqtt';
-    const TOPIC_PRE = 'nfl_beano_v8_8';
+    const TOPIC_PRE = 'nfl_beano_v8_9';
 
     // --- STATE ---
     let client, myId = 'p' + Math.random().toString(36).substr(2,6);
@@ -628,12 +627,26 @@
             let b = document.createElement('button');
             b.className = 't-btn';
             b.innerText = opt;
+            
+            // NEW CLICK HANDLER WITH HOST LOGIC
             b.onclick = () => {
                 Array.from(opts.children).forEach(btn => btn.disabled = true);
                 if(idx === qData.a) {
                     b.classList.add('correct');
-                    stat.innerText = "CORRECT! Sending...";
-                    send({ type: 'TRIVIA_WIN' });
+                    
+                    if(isHost) {
+                        // HOST WINS IMMEDIATELY (Local Handling)
+                        stat.innerText = "YOU WON!";
+                        if(!gameState.triviaScores[myId]) gameState.triviaScores[myId] = 0;
+                        gameState.triviaScores[myId]++;
+                        send({ type: 'TRIVIA_RESULT', winnerName: myName });
+                        closeTrivia(myName);
+                        render();
+                    } else {
+                        // GUEST SENDS CLAIM
+                        stat.innerText = "CORRECT! Sending...";
+                        send({ type: 'TRIVIA_WIN' });
+                    }
                 } else {
                     b.classList.add('wrong');
                     stat.innerText = "WRONG!";
@@ -642,7 +655,8 @@
             opts.appendChild(b);
         });
         box.classList.add('active');
-        setTimeout(() => box.classList.remove('active'), 25000); // 25s window
+        // Reduced to 10 seconds per request
+        setTimeout(() => box.classList.remove('active'), 10000); 
     }
 
     function closeTrivia(winnerName) {
